@@ -1,0 +1,303 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "email": "ilazo@inanova.cl",
+      "password": "123456",
+      "name": "Ivan Lazo",
+      "empresa": "Inanova",
+      "active": true
+    }
+  ],
+  "clientes": [
+    {
+      "id": "1",
+      "name": "Cliente 1",
+      "empresa": "Empresa 1",
+      "contacto": "Contacto 1",
+      "telefono": "123456789",
+      "email": "cliente1@empresa1.com",
+      "active": true
+    },
+    {
+      "id": "2",
+      "name": "Cliente 2",
+      "empresa": "Empresa 2",
+      "contacto": "Contacto 2",
+      "telefono": "987654321",
+      "email": "cliente2@empresa2.com",
+      "active": true
+    },
+    {
+      "name": "Mexico",
+      "empresa": "Empresa Mexico",
+      "contacto": "Pancho Villa",
+      "telefono": "+51987654321",
+      "email": "panchovilla@gmail.com",
+      "active": true,
+      "id": "3"
+    },
+    {
+      "name": "Venezuela",
+      "empresa": "Empresa Venezuela",
+      "contacto": "Simon Bolivar",
+      "telefono": "+58987654321",
+      "email": "simonbolivar@gmail.com",
+      "active": true,
+      "id": "4"
+    }
+  ],
+  "services": [
+    {
+      "id": "1",
+      "nombre": "Licencias",
+      "tipo": "licencia",
+      "descripcion": "Cobro por uso del sistema",
+      "precio_base": 100,
+      "moneda": "USD",
+      "unidad": "mensual",
+      "activo": true
+    },
+    {
+      "id": "2",
+      "nombre": "Transacciones",
+      "tipo": "transaccion",
+      "descripcion": "Cobro por volumen de operaciones",
+      "precio_base": 0.05,
+      "moneda": "USD",
+      "unidad": "por uso",
+      "activo": true
+    },
+    {
+      "id": "3",
+      "nombre": "Soporte extendido",
+      "tipo": "soporte",
+      "descripcion": "Soporte premium",
+      "precio_base": 50,
+      "moneda": "USD",
+      "unidad": "mensual",
+      "activo": true
+    },
+    {
+      "id": "4",
+      "nombre": "Desarrollos",
+      "tipo": "desarrollo",
+      "descripcion": "Implementación y mejoras",
+      "precio_base": 30,
+      "moneda": "USD",
+      "unidad": "hora",
+      "activo": true
+    },
+    {
+      "nombre": "Consultoria",
+      "descripcion": "Asesoria de proyectos e innovaciones",
+      "tipo": "soporte",
+      "precio_base": "35",
+      "moneda": "USD",
+      "unidad": "hora",
+      "id": "_hPvjq3xecg",
+      "activo": true
+    }
+  ],
+  "client-services": [
+    {
+      "id": "1",
+      "client_id": 1,
+      "service_id": 2,
+      "activo": true
+    },
+    {
+      "client_id": "1",
+      "service_id": "1",
+      "activo": false,
+      "id": "QFh212UrHJs"
+    },
+    {
+      "client_id": "2",
+      "service_id": "1",
+      "activo": false,
+      "id": "s7uHV42-crc"
+    },
+    {
+      "client_id": "3",
+      "service_id": "1",
+      "activo": false,
+      "id": "x9fCzm3ID78"
+    },
+    {
+      "client_id": "1",
+      "service_id": "3",
+      "activo": false,
+      "id": "9mue9Db4up0"
+    },
+    {
+      "client_id": "2",
+      "service_id": "3",
+      "activo": true,
+      "id": "FCpUKuVHJJ4"
+    },
+    {
+      "client_id": "1",
+      "service_id": "2",
+      "activo": false,
+      "id": "0CbH3nuDIY8"
+    },
+    {
+      "client_id": "1",
+      "service_id": "1",
+      "activo": true,
+      "id": "CODXwGKJcys"
+    },
+    {
+      "client_id": "2",
+      "service_id": "1",
+      "activo": true,
+      "id": "qQrlncwNbk8"
+    },
+    {
+      "client_id": "3",
+      "service_id": "1",
+      "activo": true,
+      "id": "hJfp9Ly5bOA"
+    },
+    {
+      "client_id": "3",
+      "service_id": "2",
+      "activo": true,
+      "id": "qMA4NUPMR_I"
+    },
+    {
+      "client_id": "2",
+      "service_id": "2",
+      "activo": true,
+      "id": "8oP4TLbEigQ"
+    },
+    {
+      "client_id": "1",
+      "service_id": "2",
+      "activo": true,
+      "id": "pf8AbRbUpSo"
+    },
+    {
+      "client_id": "1",
+      "service_id": "3",
+      "activo": true,
+      "id": "AFfPKvh_TuA"
+    },
+    {
+      "client_id": "2",
+      "service_id": "4",
+      "activo": true,
+      "id": "N5TwWHtwuGg"
+    },
+    {
+      "client_id": "1",
+      "service_id": "_hPvjq3xecg",
+      "activo": true,
+      "id": "5OTJ62dz8JY"
+    },
+    {
+      "client_id": "2",
+      "service_id": "2",
+      "activo": true,
+      "id": "yEtyq-KUhNY"
+    },
+    {
+      "client_id": "3",
+      "service_id": "3",
+      "activo": true,
+      "id": "7_sUnS-7SlU"
+    },
+    {
+      "client_id": "1",
+      "service_id": "4",
+      "activo": true,
+      "id": "-H1M6oLtlUM"
+    },
+    {
+      "client_id": "2",
+      "service_id": "3",
+      "activo": true,
+      "id": "PCVydtmIP4g"
+    },
+    {
+      "client_id": "1",
+      "service_id": "1",
+      "activo": true,
+      "id": "cIVJmA8syEE"
+    },
+    {
+      "client_id": "2",
+      "service_id": "1",
+      "activo": true,
+      "id": "ogaFUTUaR8E"
+    },
+    {
+      "client_id": "2",
+      "service_id": "1",
+      "activo": true,
+      "id": "Vxk6NZrObjc"
+    },
+    {
+      "client_id": "1",
+      "service_id": "1",
+      "activo": true,
+      "id": "reME3eVS3qc"
+    },
+    {
+      "client_id": "2",
+      "service_id": "3",
+      "activo": true,
+      "id": "fBm0sizIztM"
+    },
+    {
+      "client_id": "3",
+      "service_id": "4",
+      "activo": true,
+      "id": "QtAxFRMxomY"
+    },
+    {
+      "client_id": "3",
+      "service_id": "_hPvjq3xecg",
+      "activo": true,
+      "id": "mwHnJXXxD98"
+    },
+    {
+      "client_id": "2",
+      "service_id": "_hPvjq3xecg",
+      "activo": true,
+      "id": "KX1OMJwAYaA"
+    },
+    {
+      "client_id": "4",
+      "service_id": "1",
+      "activo": false,
+      "id": "aB_h8329tUw"
+    },
+    {
+      "client_id": "4",
+      "service_id": "2",
+      "activo": false,
+      "id": "6hdu21iZuUE"
+    },
+    {
+      "client_id": "4",
+      "service_id": "4",
+      "activo": false,
+      "id": "8ylD1PGVRRg"
+    },
+    {
+      "client_id": "4",
+      "service_id": "_hPvjq3xecg",
+      "activo": false,
+      "id": "DeMKNslV1MI"
+    },
+    {
+      "client_id": "4",
+      "service_id": "3",
+      "activo": false,
+      "id": "0O7SRjQmn8Y"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
