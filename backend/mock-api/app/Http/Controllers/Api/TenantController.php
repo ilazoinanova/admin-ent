@@ -15,7 +15,9 @@ class TenantController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Tenant::where('deleted', 0);
+            $query = Tenant::where('deleted', 0)->withCount([
+                'departments as departments_count' => fn ($q) => $q->where('status', 1),
+            ]);
 
             if ($request->search) {
                 $s = "%{$request->search}%";

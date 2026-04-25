@@ -7,19 +7,30 @@ import ConfirmModal from "../../components/ui/ConfirmModal";
 import toast from "react-hot-toast";
 import { Pencil, Power } from "lucide-react";
 
-const SKELETON_COLS = 8;
+const SKELETON_COLS = 7;
+
+
+const CATEGORY_COLORS = {
+  svc_desarrollo:      "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
+  svc_suscripcion:     "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
+  svc_soporte:         "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300",
+  svc_infraestructura: "bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300",
+  svc_consultoria:     "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+  svc_mantenimiento:   "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
+  svc_otro:            "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400",
+};
 
 const ServicesPage = () => {
   const { t } = useTranslation();
-  const [data, setData] = useState([]);
-  const [meta, setMeta] = useState({});
-  const [search, setSearch] = useState("");
+  const [data, setData]                     = useState([]);
+  const [meta, setMeta]                     = useState({});
+  const [search, setSearch]                 = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selected, setSelected] = useState(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [page, setPage]                     = useState(1);
+  const [modalOpen, setModalOpen]           = useState(false);
+  const [selected, setSelected]             = useState(null);
+  const [confirmOpen, setConfirmOpen]       = useState(false);
+  const [loading, setLoading]               = useState(false);
 
   const loadData = async (s = debouncedSearch, p = page) => {
     setLoading(true);
@@ -71,15 +82,14 @@ const ServicesPage = () => {
     loadData();
   };
 
-  const grid = "grid-cols-[2fr_1fr_3fr_1fr_1fr_1fr_1fr_1fr]";
+  const grid = "grid-cols-[2fr_1fr_1.4fr_4fr_3fr_2fr_1fr]";
 
   const columns = [
-    { key: "name",        label: t("service") || t("services") },
+    { key: "name",        label: t("name") },
     { key: "code",        label: t("code") },
+    { key: "category",    label: t("serviceCategory") },
     { key: "description", label: t("descriptionLabel") },
-    { key: "price",       label: t("basePrice") },
-    { key: "currency",    label: t("baseCurrency") },
-    { key: "unit",        label: t("unit") },
+    { key: "unit",        label: t("billingUnit") },
     { key: "status",      label: t("status") },
     { key: "actions",     label: t("actions") },
   ];
@@ -123,19 +133,29 @@ const ServicesPage = () => {
           <div className="p-6 text-center text-gray-500 dark:text-gray-400">{t("noServices")}</div>
         ) : (
           data.map((s) => (
-            <div key={s.id} className={`grid ${grid} px-4 py-3 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition`}>
-              <div className="dark:text-gray-200">{s.name}</div>
-              <div className="dark:text-gray-300">{s.code}</div>
-              <div className="dark:text-gray-300">{s.description}</div>
-              <div className="font-medium text-gray-700 dark:text-gray-200">
-                {(s.currency === "USD" || s.currency === "CLP") && "$"}
-                {Number(s.price).toLocaleString("es-CL")}
-                <span className="text-xs text-gray-400 ml-1">{s.currency}</span>
-              </div>
-              <div className="dark:text-gray-300">{s.currency}</div>
-              <div className="dark:text-gray-300">{s.unit}</div>
+            <div
+              key={s.id}
+              className={`grid ${grid} px-4 py-3 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition items-center gap-2`}
+            >
+              <div className="font-medium text-gray-700 dark:text-gray-200 truncate">{s.name}</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">{s.code || "-"}</div>
               <div>
-                <span className={s.status === 1 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                {s.category ? (
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${CATEGORY_COLORS[s.category] || CATEGORY_COLORS.svc_otro}`}>
+                    {t(s.category)}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 dark:text-gray-600 text-xs">-</span>
+                )}
+              </div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm truncate">{s.description || "-"}</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">{s.unit || "-"}</div>
+              <div>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                  s.status === 1
+                    ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                }`}>
                   {s.status === 1 ? t("active") : t("inactive")}
                 </span>
               </div>
@@ -143,14 +163,14 @@ const ServicesPage = () => {
                 <button
                   onClick={() => { setSelected(s); setModalOpen(true); }}
                   disabled={loading}
-                  className="text-blue-500 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="text-blue-500 hover:text-blue-700 disabled:opacity-50 transition"
                 >
                   <Pencil size={16} />
                 </button>
                 <button
                   onClick={() => handleToggle(s)}
                   disabled={loading}
-                  className={`disabled:opacity-50 disabled:cursor-not-allowed transition ${s.status === 1 ? "text-red-500 hover:text-red-700" : "text-green-500 hover:text-green-700"}`}
+                  className={`disabled:opacity-50 transition ${s.status === 1 ? "text-red-500 hover:text-red-700" : "text-green-500 hover:text-green-700"}`}
                 >
                   <Power size={16} />
                 </button>
@@ -164,7 +184,7 @@ const ServicesPage = () => {
         <button
           disabled={!meta.prev_page_url || loading}
           onClick={() => setPage(page - 1)}
-          className="px-2 py-1 border dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-300 dark:hover:bg-gray-700 transition"
+          className="px-2 py-1 border dark:border-gray-600 rounded disabled:opacity-50 dark:text-gray-300 dark:hover:bg-gray-700 transition"
         >
           {t("previous")}
         </button>
@@ -174,7 +194,7 @@ const ServicesPage = () => {
         <button
           disabled={!meta.next_page_url || loading}
           onClick={() => setPage(page + 1)}
-          className="px-2 py-1 border dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-300 dark:hover:bg-gray-700 transition"
+          className="px-2 py-1 border dark:border-gray-600 rounded disabled:opacity-50 dark:text-gray-300 dark:hover:bg-gray-700 transition"
         >
           {t("next")}
         </button>

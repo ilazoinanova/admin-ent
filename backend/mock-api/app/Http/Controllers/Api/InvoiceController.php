@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\TenantService;
+use App\Models\TenantDepartment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -77,6 +78,7 @@ class InvoiceController extends Controller
     {
         $request->validate([
             'tenant_id'           => 'required|exists:tenants,id',
+            'department_id'       => 'nullable|exists:tenant_departments,id',
             'issue_date'          => 'required|date',
             'due_date'            => 'nullable|date',
             'tax_rate'            => 'required|numeric|min:0',
@@ -99,6 +101,7 @@ class InvoiceController extends Controller
             $invoice = Invoice::create([
                 'invoice_number' => $this->generateNumber(),
                 'tenant_id'      => $request->tenant_id,
+                'department_id'  => $request->department_id,
                 'issued_by'      => $request->user()->id,
                 'issue_date'     => $request->issue_date,
                 'due_date'       => $request->due_date,
@@ -210,7 +213,28 @@ class InvoiceController extends Controller
                 ->where('status', 1)
                 ->get();
 
-            return response()->json($assignments);
+            // IDs de departamentos que tienen asignaciones activas para este tenant
+            $deptIds = $assignments
+                ->whereNotNull('department_id')
+                ->pluck('department_id')
+                ->unique()
+                ->values();
+
+            $departments = $deptIds->isNotEmpty()
+                ? TenantDepartment::whereIn('id', $deptIds)
+                    ->where('status', 1)
+                    ->where('deleted', 0)
+                    ->orderBy('name')
+                    ->get()
+                : collect();
+
+            $hasDepartmentAssignments = $deptIds->isNotEmpty();
+
+            return response()->json([
+                'assignments'               => $assignments,
+                'departments'               => $departments,
+                'has_department_assignments' => $hasDepartmentAssignments,
+            ]);
         } catch (Throwable $e) {
             Log::error('InvoiceController@tenantServices: ' . $e->getMessage());
 

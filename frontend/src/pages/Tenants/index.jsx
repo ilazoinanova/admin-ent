@@ -7,7 +7,7 @@ import {
 } from "../../api/tenants/tenant.service";
 import DataTable from "../../components/ui/DataTable";
 import { Pencil, Power } from "lucide-react";
-import TenantModal from "../../components/ui/Tenants/TenantModal";
+import TenantDetailModal from "../../components/ui/Tenants/TenantDetailModal";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 
@@ -22,7 +22,7 @@ const TenantsPage = () => {
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
 
   const loadTenants = async (s = debouncedSearch, p = page) => {
@@ -53,32 +53,34 @@ const TenantsPage = () => {
   }, [debouncedSearch, page]);
 
   const columns = [
-    { key: "name",    label: t("name") },
-    { key: "code",    label: t("code") },
-    { key: "domain",  label: t("domain") },
-    { key: "email",   label: t("email") },
-    { key: "phone",   label: t("phone") },
-    { key: "country", label: t("country") },
-    { key: "city",    label: t("city") },
-    { key: "status",  label: t("status") },
-    { key: "actions", label: t("actions") },
+    { key: "name",        label: t("name") },
+    { key: "code",        label: t("code") },
+    { key: "domain",      label: t("domain") },
+    { key: "email",       label: t("email") },
+    { key: "country",     label: t("country") },
+    { key: "city",        label: t("city") },
+    { key: "departments", label: t("departments"), className: "text-center" },
+    { key: "status",      label: t("status") },
+    { key: "actions",     label: t("actions") },
   ];
 
-  const grid = "grid-cols-[2fr_1fr_1.5fr_2fr_1.5fr_1.2fr_1.2fr_1fr_1fr]";
+  const grid = "grid-cols-[2fr_1fr_1.5fr_1.8fr_1fr_1fr_2fr_0.8fr_0.8fr]";
 
-  const handleCreate = () => { setSelectedTenant(null); setModalOpen(true); };
-  const handleEdit   = (tenant) => { setSelectedTenant(tenant); setModalOpen(true); };
+  const handleCreate = () => { setSelectedTenant(null); setDetailOpen(true); };
+  const handleEdit   = (tenant) => { setSelectedTenant(tenant); setDetailOpen(true); };
 
-  const handleSubmit = async (data) => {
+  const handleDetailSubmit = async (data) => {
     try {
-      if (selectedTenant) {
+      if (selectedTenant?.id) {
         await updateTenant(selectedTenant.id, data);
         toast.success(t("companyUpdated"));
+        setDetailOpen(false);
       } else {
-        await createTenant(data);
+        const res = await createTenant(data);
         toast.success(t("companyCreated"));
+        // Mantiene el modal abierto con el tenant recién creado para configurar deps/facturación
+        setSelectedTenant(res.data);
       }
-      setModalOpen(false);
       loadTenants();
     } catch (error) {
       toast.error(t("companySaveError"));
@@ -149,9 +151,11 @@ const TenantsPage = () => {
               <div className="text-gray-500 dark:text-gray-400">{ten.code}</div>
               <div className="text-gray-500 dark:text-gray-400">{ten.domain || "-"}</div>
               <div className="text-gray-500 dark:text-gray-400">{ten.email || "-"}</div>
-              <div className="text-gray-500 dark:text-gray-400">{ten.phone || "-"}</div>
               <div className="text-gray-500 dark:text-gray-400">{ten.country || "-"}</div>
               <div className="text-gray-500 dark:text-gray-400">{ten.city || "-"}</div>
+              <div className="text-gray-500 dark:text-gray-400 text-center">
+                {ten.departments_count > 0 ? ten.departments_count : "-"}
+              </div>
               <div>
                 <span className={`px-2 py-1 rounded text-xs font-medium ${
                   ten.status === 1
@@ -202,11 +206,11 @@ const TenantsPage = () => {
         </button>
       </div>
 
-      <TenantModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSubmit}
-        initialData={selectedTenant}
+      <TenantDetailModal
+        open={detailOpen}
+        onClose={() => { setDetailOpen(false); setSelectedTenant(null); }}
+        onSubmit={handleDetailSubmit}
+        tenant={selectedTenant}
       />
 
       <ConfirmModal

@@ -6,7 +6,7 @@ const DataTable = ({ columns, grid, children }) => {
       <div className="bg-[#0b1b3b] text-white text-sm font-medium">
         <div className={`grid ${grid} px-4 py-3`}>
           {columns.map((col) => (
-            <div key={col.key}>{col.label}</div>
+            <div key={col.key} className={col.className || ""}>{col.label}</div>
           ))}
         </div>
       </div>

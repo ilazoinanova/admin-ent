@@ -6,7 +6,7 @@ import ViewTiersModal from "./ViewTiersModal";
 import { useState } from "react";
 import { fmtDate } from "../../../utils/date";
 
-const ServiceCard = ({ tenant, service, data, onToggle, onEdit }) => {
+const ServiceCard = ({ tenant, service, data, onToggle, onEdit, departmentId, billingConfig }) => {
   const { t } = useTranslation();
   const active        = !!data;
   const isLicense     = service.name === "Licencias";
@@ -61,7 +61,7 @@ const ServiceCard = ({ tenant, service, data, onToggle, onEdit }) => {
     if (toggling) return;
     setToggling(true);
     try {
-      await onToggle(tenant.id, service.id, value);
+      await onToggle(tenant.id, service.id, value, departmentId ?? null);
     } finally {
       setToggling(false);
     }
@@ -80,7 +80,7 @@ const ServiceCard = ({ tenant, service, data, onToggle, onEdit }) => {
           <span className={`text-base font-semibold text-${color}-800 dark:text-${color}-300`}>{service.name}</span>
           {active && (
             <button
-              onClick={() => onEdit({ tenant_id: tenant.id, service_id: service.id, service_name: service.name, tenant_name: tenant.name, data })}
+              onClick={() => onEdit({ tenant_id: tenant.id, service_id: service.id, service_name: service.name, tenant_name: tenant.name, department_id: departmentId ?? null, data })}
               disabled={toggling}
               className={`text-${color}-700 dark:text-${color}-400 hover:text-${color}-900 disabled:opacity-50 disabled:cursor-not-allowed transition`}
             >
@@ -145,6 +145,15 @@ const ServiceCard = ({ tenant, service, data, onToggle, onEdit }) => {
             {active ? (billingLabels[data.billing_cycle] || "—") : "—"}
           </span>
         </div>
+
+        {active && data?.billing_cycle === "mensual" && billingConfig?.billing_day_from && billingConfig?.billing_day_to && (
+          <div className="grid grid-cols-[100px_1fr]">
+            <span className="text-gray-500 dark:text-gray-400 font-medium">{t("period")}:</span>
+            <span className={`text-${color}-700 dark:text-${color}-400 font-medium`}>
+              {t("del")} {billingConfig.billing_day_from} {t("al")} {billingConfig.billing_day_to}
+            </span>
+          </div>
+        )}
 
         {isDevelopment && active && (
           <>

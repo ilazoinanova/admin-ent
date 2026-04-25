@@ -10,6 +10,7 @@ class TenantService extends Model
 
     protected $fillable = [
         'tenant_id',
+        'department_id',
         'service_id',
         'license_type',
         'license_modalidad',
@@ -35,9 +36,13 @@ class TenantService extends Model
         return $this->belongsTo(Service::class);
     }
 
-    // TenantService.php
     public function tiers()
     {
         return $this->hasMany(TenantServiceTier::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(TenantDepartment::class);
     }
 }

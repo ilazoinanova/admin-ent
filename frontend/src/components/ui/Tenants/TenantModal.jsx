@@ -37,12 +37,19 @@ const TenantModal = ({ open, onClose, onSubmit, initialData }) => {
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-xl shadow-lg overflow-hidden border dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 w-full max-w-7xl rounded-xl shadow-lg overflow-hidden border dark:border-gray-700">
 
-        <div className="bg-[#0b1b3b] text-white px-5 py-3">
+        <div className="bg-[#0b1b3b] text-white px-5 py-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">
             {initialData ? t("editCompany") : t("createCompany")}
           </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white/70 hover:text-white text-lg leading-none transition"
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-3">

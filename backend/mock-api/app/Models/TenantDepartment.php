@@ -4,25 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Service extends Model
+class TenantDepartment extends Model
 {
     protected $fillable = [
+        'tenant_id',
         'name',
         'code',
         'description',
-        'category',
-        'unit',
-        'notes',
         'status',
         'deleted',
-        // Conservados nullable para uso futuro
-        'price',
-        'currency',
     ];
 
     protected $casts = [
-        'price'   => 'float',
         'status'  => 'integer',
         'deleted' => 'integer',
     ];
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 }

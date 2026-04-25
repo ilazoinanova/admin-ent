@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PayableController;
 use App\Http\Controllers\Api\PayablePaymentController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\TenantDepartmentController;
+use App\Http\Controllers\Api\TenantBillingConfigController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -21,6 +23,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
     Route::apiResource('tenants', TenantController::class);
+    Route::get('/tenants/{tenantId}/departments', [TenantDepartmentController::class, 'index']);
+    Route::post('/tenants/{tenantId}/departments', [TenantDepartmentController::class, 'store']);
+    Route::put('/tenants/{tenantId}/departments/{id}', [TenantDepartmentController::class, 'update']);
+    Route::delete('/tenants/{tenantId}/departments/{id}', [TenantDepartmentController::class, 'destroy']);
+    Route::get('/tenants/{tenantId}/billing-config', [TenantBillingConfigController::class, 'show']);
+    Route::put('/tenants/{tenantId}/billing-config', [TenantBillingConfigController::class, 'upsert']);
     Route::apiResource('services', ServiceController::class);
     Route::get('/assignments', [AssignmentController::class, 'index']);
     Route::post('/assignments/toggle', [AssignmentController::class, 'toggle']);

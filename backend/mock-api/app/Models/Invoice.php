@@ -9,6 +9,7 @@ class Invoice extends Model
     protected $fillable = [
         'invoice_number',
         'tenant_id',
+        'department_id',
         'issued_by',
         'issue_date',
         'due_date',
@@ -35,6 +36,11 @@ class Invoice extends Model
     public function tenant()
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(TenantDepartment::class);
     }
 
     public function items()

@@ -23,4 +23,14 @@ class Tenant extends Model
         'status' => 'integer',
         'deleted' => 'integer'
     ];
+
+    public function departments()
+    {
+        return $this->hasMany(TenantDepartment::class)->where('deleted', 0);
+    }
+
+    public function billingConfig()
+    {
+        return $this->hasOne(TenantBillingConfig::class);
+    }
 }

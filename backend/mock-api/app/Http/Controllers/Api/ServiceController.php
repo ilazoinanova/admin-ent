@@ -23,13 +23,18 @@ class ServiceController extends Controller
                     $q->where('name',        'like', $s)
                       ->orWhere('code',       'like', $s)
                       ->orWhere('description','like', $s)
-                      ->orWhere('currency',   'like', $s)
-                      ->orWhere('unit',       'like', $s);
+                      ->orWhere('category',   'like', $s)
+                      ->orWhere('unit',       'like', $s)
+                      ->orWhere('notes',      'like', $s);
                 });
             }
 
+            if ($request->filled('category')) {
+                $query->where('category', $request->category);
+            }
+
             return response()->json(
-                $query->orderBy('id', 'asc')->paginate(10)
+                $query->orderBy('name', 'asc')->paginate(10)
             );
         } catch (Throwable $e) {
             Log::error('ServiceController@index: ' . $e->getMessage());
@@ -43,9 +48,9 @@ class ServiceController extends Controller
         $request->validate([
             'name'     => 'required|string|max:255',
             'code'     => 'nullable|string|max:100|unique:services,code',
-            'price'    => 'nullable|numeric|min:0',
-            'currency' => 'nullable|string|max:10',
+            'category' => 'nullable|string|max:50',
             'unit'     => 'nullable|string|max:50',
+            'notes'    => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -83,9 +88,9 @@ class ServiceController extends Controller
         $request->validate([
             'name'     => 'sometimes|required|string|max:255',
             'code'     => "sometimes|nullable|string|max:100|unique:services,code,{$id}",
-            'price'    => 'sometimes|nullable|numeric|min:0',
-            'currency' => 'sometimes|nullable|string|max:10',
+            'category' => 'sometimes|nullable|string|max:50',
             'unit'     => 'sometimes|nullable|string|max:50',
+            'notes'    => 'sometimes|nullable|string',
         ]);
 
         DB::beginTransaction();
