@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\TenantService;
 use App\Models\TenantDepartment;
+use App\Models\TenantBillingConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -230,10 +231,13 @@ class InvoiceController extends Controller
 
             $hasDepartmentAssignments = $deptIds->isNotEmpty();
 
+            $billingConfig = TenantBillingConfig::where('tenant_id', $tenantId)->first();
+
             return response()->json([
-                'assignments'               => $assignments,
-                'departments'               => $departments,
+                'assignments'                => $assignments,
+                'departments'                => $departments,
                 'has_department_assignments' => $hasDepartmentAssignments,
+                'currency'                   => $billingConfig?->currency ?? 'CLP',
             ]);
         } catch (Throwable $e) {
             Log::error('InvoiceController@tenantServices: ' . $e->getMessage());

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PayablePaymentController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\TenantDepartmentController;
 use App\Http\Controllers\Api\TenantBillingConfigController;
+use App\Http\Controllers\Api\QuoteController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -36,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('invoices', InvoiceController::class);
     Route::get('/invoices-tenant-services/{tenantId}', [InvoiceController::class, 'tenantServices']);
+
+    Route::apiResource('quotes', QuoteController::class);
+    Route::get('/quotes-tenant-services/{tenantId}', [QuoteController::class, 'tenantServices']);
 
     Route::apiResource('payables', PayableController::class);
     Route::get('/payables/{payableId}/payments', [PayablePaymentController::class, 'index']);

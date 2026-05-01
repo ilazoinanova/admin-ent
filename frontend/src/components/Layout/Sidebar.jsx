@@ -10,6 +10,7 @@ import {
   Box,
   Receipt,
   Wallet,
+  ClipboardList,
 } from "lucide-react";
 import logoFull from "../../assets/stratek.png";
 import logoIcon from "../../assets/stratek-icon.png";
@@ -27,6 +28,7 @@ const Sidebar = ({ collapsed }) => {
     if (
       location.pathname.includes("productos") ||
       location.pathname.includes("facturacion") ||
+      location.pathname.includes("cotizaciones") ||
       location.pathname.includes("cuentas-pagar")
     ) {
       setOpenMenu(true);
@@ -162,6 +164,13 @@ const Sidebar = ({ collapsed }) => {
               />
 
               <SubItem
+                to="/cotizaciones"
+                icon={<ClipboardList size={16} />}
+                label={t("quotes")}
+                closeMenu={() => setOpenFloating(false)}
+              />
+
+              <SubItem
                 to="/cuentas-pagar"
                 icon={<Wallet size={16} />}
                 label={t("accountsPayable")}
@@ -185,6 +194,12 @@ const Sidebar = ({ collapsed }) => {
                 to="/facturacion"
                 icon={<Receipt size={16} />}
                 label={t("billing")}
+              />
+
+              <SubItem
+                to="/cotizaciones"
+                icon={<ClipboardList size={16} />}
+                label={t("quotes")}
               />
 
               <SubItem

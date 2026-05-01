@@ -7,6 +7,7 @@ import Login from "../pages/Login";
 import Productos from "../pages/Servicios";
 import Facturacion from "../pages/GestionComercial/Facturacion";
 import CuentasPagar from "../pages/GestionComercial/CuentasPagar";
+import Cotizaciones from "../pages/GestionComercial/Cotizaciones";
 import ServiciosCliente from "../pages/Asignaciones";
 
 const AppRouter = () => {
@@ -28,6 +29,7 @@ const AppRouter = () => {
                 <Route path="/productos" element={<Productos />} />
                 <Route path="/servicios-cliente" element={<ServiciosCliente />} />
                 <Route path="/facturacion" element={<Facturacion />} />
+                <Route path="/cotizaciones" element={<Cotizaciones />} />
                 <Route path="/cuentas-pagar" element={<CuentasPagar />} />
               </Routes>
             </MainLayout>

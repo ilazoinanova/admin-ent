@@ -103,15 +103,7 @@ export default function InvoiceDetailModal({ invoice, onClose, onStatusChange })
 
               {/* Totales en panel izquierdo */}
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-2 text-sm border dark:border-gray-600">
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>{t("subtotal")}</span>
-                  <span className="font-medium">${fmt(invoice.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>{t("ivaPercent").replace(" (%)", "")} ({invoice.tax_rate}%)</span>
-                  <span className="font-medium">${fmt(invoice.tax)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-gray-900 dark:text-gray-100 text-base border-t dark:border-gray-600 pt-2 mt-1">
+                <div className="flex justify-between font-bold text-gray-900 dark:text-gray-100 text-base">
                   <span>{t("total")} {invoice.currency}</span>
                   <span>${fmt(invoice.total)}</span>
                 </div>

@@ -157,7 +157,7 @@ const BillingConfigTab = ({ tenantId, onClose }) => {
 
       {/* ── Ciclo de facturación ── */}
       <Section title={t("billingCycleSection")}>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-4 gap-3">
 
           <div>
             <label className={labelClass}>{t("billingCycle")}</label>
@@ -184,39 +184,44 @@ const BillingConfigTab = ({ tenantId, onClose }) => {
             />
           </div>
 
-          {/* Rango de corte — ocupa 2 columnas */}
-          <div className="col-span-2">
-            <label className={labelClass}>{t("billingRange")}</label>
-            <div className={`flex items-center gap-2 p-3 rounded-lg border ${rangeError ? "border-red-400 bg-red-50 dark:bg-red-900/10" : "border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/40"}`}>
-              <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{t("del")}</span>
+          {/* Rango de corte */}
+          <div>
+            <label className={`${labelClass} flex items-center gap-1`}>
+              {t("billingRange")}
+              <span className="relative group/tip">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-default" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" />
+                </svg>
+                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 rounded-md bg-gray-800 dark:bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 z-50 text-center leading-snug">
+                  {t("billingRangeHint")}
+                </span>
+              </span>
+            </label>
+            <div className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border ${rangeError ? "border-red-400 bg-red-50 dark:bg-red-900/10" : "border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/40"}`}>
+              <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">{t("del")}</span>
               <input
                 type="number"
                 value={form.billing_day_from}
                 onChange={(e) => set("billing_day_from", Math.min(31, Math.max(1, parseInt(e.target.value) || 1)))}
                 min={1} max={31}
-                className="w-16 text-center border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-2 py-1.5 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-12 text-center border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-1 py-1 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
-              <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{t("al")}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">{t("al")}</span>
               <input
                 type="number"
                 value={form.billing_day_to}
                 onChange={(e) => set("billing_day_to", Math.min(31, Math.max(1, parseInt(e.target.value) || 1)))}
                 min={1} max={31}
-                className="w-16 text-center border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-2 py-1.5 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-12 text-center border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-1 py-1 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
-              <span className="text-sm text-gray-400 dark:text-gray-500 shrink-0">
-                {form.billing_day_from > form.billing_day_to
-                  ? t("billingRangeCross")
-                  : ""}
-              </span>
               <span className={`ml-auto text-xs font-medium shrink-0 ${rangeError ? "text-red-500" : "text-gray-400 dark:text-gray-500"}`}>
-                {t("billingRangeDays", { n: range })}
+                {range}d
               </span>
             </div>
             {rangeError && (
               <p className="text-xs text-red-500 mt-1">{t("billingRangeError")}</p>
             )}
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t("billingRangeHint")}</p>
           </div>
 
           <div>
