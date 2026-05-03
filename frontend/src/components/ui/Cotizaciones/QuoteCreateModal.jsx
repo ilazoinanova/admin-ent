@@ -13,11 +13,28 @@ const inputClass =
 
 const labelClass = "block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1";
 
+// Devuelve currency, tax_rate y tax_name resueltos según el billing del departamento (o la compañía como fallback)
+const resolveBilling = (dept, fallbackCurrency, fallbackTaxPercent, fallbackTaxName) => {
+  if (dept?.use_department_billing) {
+    const hasTax = dept.applies_tax && (dept.tax_percent ?? 0) > 0;
+    return {
+      deptCurrency: dept.currency    || fallbackCurrency,
+      deptTaxRate:  String(hasTax ? (dept.tax_percent ?? 0) : 0),
+      deptTaxName:  hasTax ? (dept.tax_name ?? "IVA") : "",
+    };
+  }
+  return {
+    deptCurrency: fallbackCurrency,
+    deptTaxRate:  String(fallbackTaxPercent),
+    deptTaxName:  fallbackTaxPercent > 0 ? (fallbackTaxName ?? "IVA") : "",
+  };
+};
+
 export default function QuoteCreateModal({ onClose, onCreated }) {
   const { t } = useTranslation();
   const STEPS = [t("clientData"), t("serviceSelection"), t("reviewTotals"), t("quotePreviewStep")];
 
-  const [step, setStep]           = useState(1);
+  const [step, setStep]             = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
   const [tenants, setTenants]                   = useState([]);
@@ -31,6 +48,8 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
     department_id: null,
     issue_date:   new Date().toISOString().slice(0, 10),
     expiry_date:  "",
+    tax_rate:     "0",
+    tax_name:     "",
     currency:     "CLP",
     notes:        "",
   });
@@ -39,6 +58,11 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
   const [invoiceDepartments, setInvoiceDepartments] = useState([]);
   const [hasDeptAssignments, setHasDeptAssignments] = useState(false);
   const [loadingDeptInfo,    setLoadingDeptInfo]    = useState(false);
+
+  // Billing de la compañía (fallback cuando el depto no tiene billing propio)
+  const [companyCurrency,   setCompanyCurrency]   = useState("CLP");
+  const [companyTaxPercent, setCompanyTaxPercent] = useState(0);
+  const [companyTaxName,    setCompanyTaxName]    = useState("");
 
   const [selectedServices, setSelectedServices] = useState([]);
   const [othersSelected,   setOthersSelected]   = useState(false);
@@ -58,7 +82,7 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
     return () => clearTimeout(timer);
   }, [tenantSearch]);
 
-  /* ── Carga servicios + moneda del tenant ── */
+  /* ── Carga servicios + billing del tenant ── */
   useEffect(() => {
     if (!form.tenant_id) return;
     let cancelled = false;
@@ -68,22 +92,41 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
         const res  = await getTenantActiveServicesForQuote(form.tenant_id);
         const data = res.data ?? {};
         if (cancelled) return;
+
         const assignments = Array.isArray(data.assignments) ? data.assignments : [];
         const departments = data.departments ?? [];
         const apiHasDept  = data.has_department_assignments ?? false;
         const stored      = departments.length > 0 ? getStoredMode(form.tenant_id) : null;
         const hasDept     = stored ? stored.mode === "department" : apiHasDept && departments.length > 0;
-        const currency    = data.currency ?? "CLP";
+
+        // Guardar billing de la compañía como fallback
+        const currency   = data.currency    ?? "CLP";
+        const taxPercent = data.tax_percent ?? 0;
+        const taxName    = data.tax_name    ?? "";
+        setCompanyCurrency(currency);
+        setCompanyTaxPercent(taxPercent);
+        setCompanyTaxName(taxName);
 
         setAllAssignments(assignments);
         setInvoiceDepartments(departments);
         setHasDeptAssignments(hasDept);
 
         if (hasDept && departments.length > 0) {
-          const preferredId = stored?.deptId ? departments.find((d) => d.id === stored.deptId)?.id : null;
-          setForm((prev) => ({ ...prev, department_id: preferredId ?? departments[0].id, currency }));
+          const preferredId    = stored?.deptId ? departments.find((d) => d.id === stored.deptId)?.id : null;
+          const selectedDeptId = preferredId ?? departments[0].id;
+          const selectedDept   = departments.find((d) => d.id === selectedDeptId);
+
+          const { deptCurrency, deptTaxRate, deptTaxName } = resolveBilling(selectedDept, currency, taxPercent, taxName);
+
+          setForm((prev) => ({
+            ...prev,
+            department_id: selectedDeptId,
+            currency:      deptCurrency,
+            tax_rate:      deptTaxRate,
+            tax_name:      deptTaxName,
+          }));
         } else {
-          setForm((prev) => ({ ...prev, currency }));
+          setForm((prev) => ({ ...prev, currency, tax_rate: String(taxPercent), tax_name: taxName }));
         }
       } catch { /* silent */ }
       finally { if (!cancelled) setLoadingDeptInfo(false); }
@@ -144,6 +187,8 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
     setItems((prev) => [...prev, { tenant_service_id: null, service_id: null, description: "", quantity: 1, unit: "", unit_price: 0 }]);
 
   const subtotal = items.reduce((acc, i) => acc + Number(i.quantity) * Number(i.unit_price), 0);
+  const tax      = subtotal * (Number(form.tax_rate) / 100);
+  const total    = subtotal + tax;
   const fmt      = (n) => Number(n).toLocaleString("es-CL");
 
   const handleStep3Next = () => {
@@ -172,7 +217,7 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
     }
   };
 
-  const selectedDeptName = form.department_id
+  const selectedDeptName   = form.department_id
     ? invoiceDepartments.find((d) => d.id === form.department_id)?.name
     : null;
   const currentAssignments = getScopeAssignments();
@@ -218,6 +263,7 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
           {/* ── PASO 1 ── */}
           {step === 1 && (
             <>
+              {/* Búsqueda de cliente */}
               <div className="relative">
                 <label className={labelClass}>{t("clientRequired")}</label>
                 <input
@@ -245,6 +291,7 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
                 {form.tenant_id && <p className="text-xs text-green-600 mt-1 font-medium">{t("clientSelected")}</p>}
               </div>
 
+              {/* Selector de departamento */}
               {form.tenant_id && (loadingDeptInfo ? (
                 <div className="h-16 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse" />
               ) : hasDeptAssignments ? (
@@ -256,17 +303,36 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
                   <p className="text-xs text-teal-600 dark:text-teal-400">{t("invoiceDeptHint")}</p>
                   <select
                     value={form.department_id ?? ""}
-                    onChange={(e) => setForm((prev) => ({ ...prev, department_id: Number(e.target.value) || null }))}
+                    onChange={(e) => {
+                      const deptId = Number(e.target.value) || null;
+                      const dept   = invoiceDepartments.find((d) => d.id === deptId);
+                      const { deptCurrency, deptTaxRate, deptTaxName } = resolveBilling(dept, companyCurrency, companyTaxPercent, companyTaxName);
+                      setForm((prev) => ({ ...prev, department_id: deptId, currency: deptCurrency, tax_rate: deptTaxRate, tax_name: deptTaxName }));
+                    }}
                     className="w-full border border-teal-200 dark:border-teal-700 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
                   >
                     <option value="">{t("select")}...</option>
                     {invoiceDepartments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name}{dept.use_department_billing ? " ★" : ""}
+                      </option>
                     ))}
                   </select>
+                  {/* Indicador de billing del departamento seleccionado */}
+                  {form.department_id && invoiceDepartments.find((d) => d.id === form.department_id)?.use_department_billing ? (
+                    <p className="text-xs text-teal-600 dark:text-teal-400 font-medium">
+                      {(() => {
+                        const dept = invoiceDepartments.find((d) => d.id === form.department_id);
+                        return `★ ${t("deptBillingActive")}: ${dept.currency} · ${t(dept.billing_cycle)}${dept.applies_tax ? ` · ${dept.tax_name ?? "IVA"} ${dept.tax_percent}%` : ""}`;
+                      })()}
+                    </p>
+                  ) : form.department_id ? (
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{t("deptBillingInherited")}</p>
+                  ) : null}
                 </div>
               ) : null)}
 
+              {/* Fechas + Moneda */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className={labelClass}>{t("issueDateRequired")}</label>
@@ -295,6 +361,40 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
                 </div>
               </div>
 
+              {/* Impuesto aplicado */}
+              {form.tenant_id && !loadingDeptInfo && (
+                <div className={`flex items-center justify-between rounded-lg px-4 py-3 border ${
+                  Number(form.tax_rate) > 0
+                    ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-700"
+                    : "bg-gray-50 dark:bg-gray-700/40 border-gray-200 dark:border-gray-600"
+                }`}>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t("taxSettings")}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      {Number(form.tax_rate) > 0 ? t("appliesTaxHint") : t("taxExempt")}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {Number(form.tax_rate) > 0 && (
+                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                        {form.tax_name || "IVA"}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={form.tax_rate}
+                        onChange={(e) => setForm({ ...form, tax_rate: e.target.value })}
+                        min={0} max={100} step={0.01}
+                        className="w-20 text-right border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-2 py-1 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notas */}
               <div>
                 <label className={labelClass}>{t("notesOptional")}</label>
                 <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className={inputClass} placeholder={t("quoteNotesPh")} />
@@ -400,6 +500,7 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
                 </button>
               </div>
 
+              {/* ── Panel lateral de resumen ── */}
               <div className="flex flex-col gap-4 sticky top-0">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
                   <div className="bg-[#0b1b3b] px-4 py-3">
@@ -446,12 +547,39 @@ export default function QuoteCreateModal({ onClose, onCreated }) {
                   </div>
                 )}
 
-                <div className="bg-[#0b1b3b] rounded-xl px-5 py-5">
-                  <p className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1">{t("total")} {form.currency}</p>
-                  <p className="text-3xl font-black text-white tabular-nums">${fmt(subtotal)}</p>
-                  {items.length > 0 && (
-                    <p className="text-xs text-white/50 mt-2">{items.length} {items.length === 1 ? t("item") : t("items")} · {t("exento")}</p>
+                {/* Totales */}
+                <div className="bg-[#0b1b3b] rounded-xl px-5 py-5 space-y-2">
+                  {/* Subtotal */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/60 uppercase tracking-wide">{t("subtotal")}</span>
+                    <span className="text-sm font-semibold text-white/80 tabular-nums">${fmt(subtotal)}</span>
+                  </div>
+
+                  {/* Impuesto (solo si aplica) */}
+                  {Number(form.tax_rate) > 0 ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-amber-300/80">
+                        {form.tax_name || "IVA"} ({form.tax_rate}%)
+                      </span>
+                      <span className="text-sm font-semibold text-amber-300 tabular-nums">+${fmt(tax)}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-white/40">{t("exento")}</span>
+                      <span className="text-xs text-white/40">—</span>
+                    </div>
                   )}
+
+                  {/* Separador + Total */}
+                  <div className="border-t border-white/20 pt-2">
+                    <p className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1">{t("total")} {form.currency}</p>
+                    <p className="text-3xl font-black text-white tabular-nums">${fmt(total)}</p>
+                    {items.length > 0 && (
+                      <p className="text-xs text-white/40 mt-1.5">
+                        {items.length} {items.length === 1 ? t("item") : t("items")}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

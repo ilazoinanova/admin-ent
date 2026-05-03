@@ -2,6 +2,7 @@ import {
   Document, Page, View, Text, Image, StyleSheet,
 } from "@react-pdf/renderer";
 import logoSrc from "../../../assets/stratek.png";
+import { periodLabel, fmtPeriodDate } from "../../../utils/billingPeriod";
 
 const COMPANY = {
   name:    "STRATEK SPA",
@@ -427,6 +428,8 @@ function QRPlaceholder() {
 /* ─── Main document ─────────────────────── */
 export default function InvoicePdfDocument({ form, items, tenant, deptName }) {
   const subtotal = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0);
+  const tax      = subtotal * (Number(form.tax_rate ?? 0) / 100);
+  const total    = subtotal + tax;
 
   const clientRows = [
     { label: "SEÑOR(ES):",    value: tenant?.name    ?? "—", bold: true },
@@ -513,6 +516,24 @@ export default function InvoicePdfDocument({ form, items, tenant, deptName }) {
           </View>
         </View>
 
+        {/* ══ PERÍODO DE FACTURACIÓN ═══════════════════ */}
+        {form.billing_period && (
+          <View style={[s.sectionWrapper, { marginBottom: 12 }]}>
+            <View style={[s.sectionHead, { backgroundColor: C.blue }]}>
+              <Text style={s.sectionHeadText}>PERÍODO DE FACTURACIÓN</Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 8, paddingBottom: 8, paddingLeft: 12, paddingRight: 12, gap: 6 }}>
+              <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.blue, width: 60 }}>PERÍODO:</Text>
+              <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.black }}>
+                {periodLabel(form.billing_period)}
+              </Text>
+              <Text style={{ fontSize: 8, color: C.gray500, marginLeft: 14 }}>
+                Del {fmtPeriodDate(form.period_from)} al {fmtPeriodDate(form.period_to)}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* ══ TABLA DE ÍTEMS ════════════════════════════ */}
         <View style={s.table}>
           {/* Encabezado */}
@@ -578,12 +599,23 @@ export default function InvoicePdfDocument({ form, items, tenant, deptName }) {
             </View>
             <View style={s.totalsBody}>
               <View style={s.totalsRow}>
-                <Text style={s.totalsLabel}>EXENTO</Text>
+                <Text style={s.totalsLabel}>SUBTOTAL</Text>
                 <Text style={s.totalsValue}>${fmt(subtotal)}</Text>
               </View>
+              {Number(form.tax_rate ?? 0) > 0 ? (
+                <View style={s.totalsRow}>
+                  <Text style={s.totalsLabel}>{form.tax_name || "IVA"} ({form.tax_rate}%)</Text>
+                  <Text style={s.totalsValue}>${fmt(tax)}</Text>
+                </View>
+              ) : (
+                <View style={s.totalsRow}>
+                  <Text style={[s.totalsLabel, { color: C.gray400 }]}>EXENTO</Text>
+                  <Text style={[s.totalsValue, { color: C.gray400 }]}>—</Text>
+                </View>
+              )}
               <View style={s.totalsFinal}>
                 <Text>TOTAL {form.currency}</Text>
-                <Text>${fmt(subtotal)}</Text>
+                <Text>${fmt(total)}</Text>
               </View>
             </View>
           </View>

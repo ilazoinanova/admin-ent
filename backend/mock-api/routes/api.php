@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\TenantDepartmentController;
 use App\Http\Controllers\Api\TenantBillingConfigController;
 use App\Http\Controllers\Api\QuoteController;
+use App\Http\Controllers\Api\LicenseBillingController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -40,6 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('quotes', QuoteController::class);
     Route::get('/quotes-tenant-services/{tenantId}', [QuoteController::class, 'tenantServices']);
+
+    Route::get('/billing/license-preview', [LicenseBillingController::class, 'preview']);
 
     Route::apiResource('payables', PayableController::class);
     Route::get('/payables/{payableId}/payments', [PayablePaymentController::class, 'index']);

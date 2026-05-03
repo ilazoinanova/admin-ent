@@ -397,5 +397,23 @@
 
     "billingSettings": "Billing settings",
     "noBillingConfigTitle": "No billing configuration",
-    "noBillingConfigHint": "This company has no billing configuration registered. Go to Companies → Billing tab and fill in the data before configuring this assignment."
+    "noBillingConfigHint": "This company has no billing configuration registered. Go to Companies → Billing tab and fill in the data before configuring this assignment.",
+
+    "deptBillingSection": "Department Billing",
+    "useDeptBilling": "Use custom billing configuration",
+    "useDeptBillingHint": "This department will use its own currency, cycle and taxes when issuing invoices",
+    "deptBillingActive": "Custom billing active",
+    "deptBillingInherited": "Inherits billing configuration from the company",
+
+    "taxExempt": "No tax applied (tax exempt)",
+
+    "billingPeriod": "Billing period",
+    "selectPeriodError": "Select a billing period",
+    "lastBilledPeriod": "Last billed",
+    "periodRange": "Period range",
+
+    "autoCalculated": "Auto-calculated",
+    "licensedUsers": "users",
+    "licensePreviewError": "Error calculating active licenses for the period",
+    "activeLicensesInPeriod": "Active licenses in period"
 }

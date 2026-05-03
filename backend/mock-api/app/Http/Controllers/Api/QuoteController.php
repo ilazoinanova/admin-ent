@@ -77,6 +77,7 @@ class QuoteController extends Controller
             'department_id'       => 'nullable|exists:tenant_departments,id',
             'issue_date'          => 'required|date',
             'expiry_date'         => 'nullable|date',
+            'tax_rate'            => 'required|numeric|min:0',
             'currency'            => 'required|string|max:10',
             'notes'               => 'nullable|string',
             'items'               => 'required|array|min:1',
@@ -90,18 +91,23 @@ class QuoteController extends Controller
             $subtotal = collect($request->items)
                 ->sum(fn ($i) => $i['quantity'] * $i['unit_price']);
 
+            $tax   = round($subtotal * ($request->tax_rate / 100), 2);
+            $total = round($subtotal + $tax, 2);
+
             $quote = Quote::create([
-                'quote_number' => $this->generateNumber(),
-                'tenant_id'    => $request->tenant_id,
-                'department_id'=> $request->department_id,
-                'issued_by'    => $request->user()->id,
-                'issue_date'   => $request->issue_date,
-                'expiry_date'  => $request->expiry_date,
-                'status'       => 'draft',
-                'subtotal'     => round($subtotal, 2),
-                'total'        => round($subtotal, 2),
-                'currency'     => $request->currency,
-                'notes'        => $request->notes,
+                'quote_number'  => $this->generateNumber(),
+                'tenant_id'     => $request->tenant_id,
+                'department_id' => $request->department_id,
+                'issued_by'     => $request->user()->id,
+                'issue_date'    => $request->issue_date,
+                'expiry_date'   => $request->expiry_date,
+                'status'        => 'draft',
+                'subtotal'      => round($subtotal, 2),
+                'tax_rate'      => $request->tax_rate,
+                'tax'           => $tax,
+                'total'         => $total,
+                'currency'      => $request->currency,
+                'notes'         => $request->notes,
             ]);
 
             foreach ($request->items as $item) {
@@ -201,6 +207,12 @@ class QuoteController extends Controller
                 'departments'                => $departments,
                 'has_department_assignments' => $deptIds->isNotEmpty(),
                 'currency'                   => $billingConfig?->currency ?? 'CLP',
+                'tax_percent'                => ($billingConfig?->applies_tax)
+                    ? (float) ($billingConfig->tax_percent ?? 0)
+                    : 0,
+                'tax_name'                   => ($billingConfig?->applies_tax)
+                    ? ($billingConfig->tax_name ?? 'IVA')
+                    : null,
             ]);
         } catch (Throwable $e) {
             Log::error('QuoteController@tenantServices: ' . $e->getMessage());

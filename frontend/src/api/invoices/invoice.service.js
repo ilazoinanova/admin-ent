@@ -17,3 +17,6 @@ export const deleteInvoice = (id) =>
 
 export const getTenantActiveServices = (tenantId) =>
   api.get(`/invoices-tenant-services/${tenantId}`);
+
+export const getLicenseBillingPreview = (params) =>
+  api.get("/billing/license-preview", { params });

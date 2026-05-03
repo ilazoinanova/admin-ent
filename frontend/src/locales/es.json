@@ -397,5 +397,23 @@
 
     "billingSettings": "Configuración de facturación",
     "noBillingConfigTitle": "Sin configuración de facturación",
-    "noBillingConfigHint": "Esta compañía no tiene configuración de facturación registrada. Ve a Compañías → pestaña Facturación y completa los datos antes de configurar esta asignación."
+    "noBillingConfigHint": "Esta compañía no tiene configuración de facturación registrada. Ve a Compañías → pestaña Facturación y completa los datos antes de configurar esta asignación.",
+
+    "deptBillingSection": "Facturación del Departamento",
+    "useDeptBilling": "Usar configuración propia de facturación",
+    "useDeptBillingHint": "El departamento usará su propia moneda, ciclo e impuestos al emitir facturas",
+    "deptBillingActive": "Facturación propia activa",
+    "deptBillingInherited": "Hereda configuración de facturación de la compañía",
+
+    "taxExempt": "Sin impuesto aplicado (exento)",
+
+    "billingPeriod": "Período de facturación",
+    "selectPeriodError": "Selecciona un período de facturación",
+    "lastBilledPeriod": "Último facturado",
+    "periodRange": "Rango del período",
+
+    "autoCalculated": "Cálculo automático",
+    "licensedUsers": "usuarios",
+    "licensePreviewError": "Error al calcular las licencias activas del período",
+    "activeLicensesInPeriod": "Licencias activas en el período"
 }

@@ -80,6 +80,9 @@ class InvoiceController extends Controller
         $request->validate([
             'tenant_id'           => 'required|exists:tenants,id',
             'department_id'       => 'nullable|exists:tenant_departments,id',
+            'billing_period'      => 'required|string|max:7',
+            'period_from'         => 'required|date',
+            'period_to'           => 'required|date',
             'issue_date'          => 'required|date',
             'due_date'            => 'nullable|date',
             'tax_rate'            => 'required|numeric|min:0',
@@ -103,6 +106,9 @@ class InvoiceController extends Controller
                 'invoice_number' => $this->generateNumber(),
                 'tenant_id'      => $request->tenant_id,
                 'department_id'  => $request->department_id,
+                'billing_period' => $request->billing_period,
+                'period_from'    => $request->period_from,
+                'period_to'      => $request->period_to,
                 'issued_by'      => $request->user()->id,
                 'issue_date'     => $request->issue_date,
                 'due_date'       => $request->due_date,
@@ -233,11 +239,46 @@ class InvoiceController extends Controller
 
             $billingConfig = TenantBillingConfig::where('tenant_id', $tenantId)->first();
 
+            // Último período facturado general (sin departamento)
+            $lastGeneralPeriod = Invoice::where('tenant_id', $tenantId)
+                ->whereNull('department_id')
+                ->where('deleted', 0)
+                ->whereNotNull('billing_period')
+                ->orderBy('billing_period', 'desc')
+                ->value('billing_period');
+
+            // Último período facturado por departamento
+            $deptLastPeriods = $deptIds->isNotEmpty()
+                ? Invoice::where('tenant_id', $tenantId)
+                    ->whereIn('department_id', $deptIds)
+                    ->where('deleted', 0)
+                    ->whereNotNull('billing_period')
+                    ->selectRaw('department_id, MAX(billing_period) as last_period')
+                    ->groupBy('department_id')
+                    ->pluck('last_period', 'department_id')
+                : collect();
+
+            // Inyectar last_billed_period en cada departamento
+            $departments = $departments->map(function ($dept) use ($deptLastPeriods) {
+                $dept->last_billed_period = $deptLastPeriods[$dept->id] ?? null;
+                return $dept;
+            });
+
             return response()->json([
                 'assignments'                => $assignments,
                 'departments'                => $departments,
                 'has_department_assignments' => $hasDepartmentAssignments,
                 'currency'                   => $billingConfig?->currency ?? 'CLP',
+                'tax_percent'                => ($billingConfig?->applies_tax)
+                    ? (float) ($billingConfig->tax_percent ?? 0)
+                    : 0,
+                'tax_name'                   => ($billingConfig?->applies_tax)
+                    ? ($billingConfig->tax_name ?? 'IVA')
+                    : null,
+                'billing_day_from'           => $billingConfig?->billing_day_from   ?? 1,
+                'billing_day_to'             => $billingConfig?->billing_day_to     ?? 28,
+                'payment_terms_days'         => $billingConfig?->payment_terms_days ?? 30,
+                'last_billed_period'         => $lastGeneralPeriod,
             ]);
         } catch (Throwable $e) {
             Log::error('InvoiceController@tenantServices: ' . $e->getMessage());

@@ -15,6 +15,8 @@ class Quote extends Model
         'expiry_date',
         'status',
         'subtotal',
+        'tax_rate',
+        'tax',
         'total',
         'currency',
         'notes',
@@ -22,9 +24,11 @@ class Quote extends Model
     ];
 
     protected $casts = [
-        'subtotal' => 'float',
-        'total'    => 'float',
-        'deleted'  => 'integer',
+        'subtotal'  => 'float',
+        'tax_rate'  => 'float',
+        'tax'       => 'float',
+        'total'     => 'float',
+        'deleted'   => 'integer',
     ];
 
     public function tenant()

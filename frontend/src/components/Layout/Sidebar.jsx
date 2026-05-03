@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../../auth/AuthContext";
 import {
   LayoutDashboard,
-  Users,
+  Building2,
   LinkIcon,
   Briefcase,
   ChevronDown,
@@ -96,7 +96,7 @@ const Sidebar = ({ collapsed }) => {
 
         <MenuItem
           to="/tenants"
-          icon={<Users size={18} />}
+          icon={<Building2 size={18} />}
           label={t("companies")}
           collapsed={collapsed}
           active={location.pathname === "/tenants"}
