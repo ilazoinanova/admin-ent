@@ -224,6 +224,12 @@
     "activeServicesOf": "Active services of",
     "selectServicesHint": "Select the ones to include in the invoice.",
     "noActiveServicesAssigned": "This client has no active services assigned.",
+    "noServiceDataForPeriod": "No service has billable data for this period.",
+    "downloadExcel": "Download Excel",
+    "applySelection": "Apply selection",
+    "included": "Included",
+    "yes": "Yes",
+    "no": "No",
     "servicesSelected": "service(s) selected",
     "addManualItem": "Add manual item",
     "itemDescriptionPh": "Item description",
@@ -269,6 +275,7 @@
     "descriptionItemError": "Complete the description of all items",
     "quantityError": "Quantity must be greater than 0",
     "invoiceCreated": "Invoice created successfully",
+    "downloadPdf": "Download PDF",
     "invoiceCreateError": "Error creating the invoice",
     "invoiceDeptTitle": "This company is billed by department",
     "invoiceDeptHint": "Select the department this invoice will be issued to",
@@ -415,5 +422,20 @@
     "autoCalculated": "Auto-calculated",
     "licensedUsers": "users",
     "licensePreviewError": "Error calculating active licenses for the period",
-    "activeLicensesInPeriod": "Active licenses in period"
+    "activeLicensesInPeriod": "Active licenses in period",
+
+    "integrationAutoCalc": "Integration calculated",
+    "documentsProcessed": "documents",
+    "integrationPreviewError": "Error calculating integrations for the period",
+
+    "integrationViewDocs": "View documents",
+    "integrationDocsTitle": "Documents to invoice",
+    "integrationDocsError": "Error loading document list",
+    "integrationDocsEmpty": "No documents found for this period",
+    "integrationDocsDedup": "Unique records · no duplicates",
+    "integrationProject": "Project",
+    "integrationSystem": "System",
+    "integrationOtNumber": "OT Number",
+    "integrationReportType": "Report Type",
+    "date": "Date"
 }

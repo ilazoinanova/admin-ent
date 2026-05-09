@@ -20,3 +20,9 @@ export const getTenantActiveServices = (tenantId) =>
 
 export const getLicenseBillingPreview = (params) =>
   api.get("/billing/license-preview", { params });
+
+export const getIntegrationBillingPreview = (params) =>
+  api.get("/billing/integration-preview", { params });
+
+export const getIntegrationDocuments = (params) =>
+  api.get("/billing/integration-documents", { params });

@@ -277,31 +277,49 @@ const s = StyleSheet.create({
     gap:           10,
   },
   stampBox: {
-    flex:          1,
-    borderWidth:   1,
-    borderColor:   C.gray300,
-    borderRadius:  6,
-    paddingTop:    14,
-    paddingBottom: 14,
-    paddingLeft:   12,
-    paddingRight:  12,
-    alignItems:    "center",
-    justifyContent: "center",
-    minHeight:     90,
+    flex:            1,
+    borderWidth:     1,
+    borderColor:     C.gray300,
+    borderRadius:    6,
+    paddingTop:      12,
+    paddingBottom:   12,
+    paddingLeft:     14,
+    paddingRight:    14,
+    minHeight:       90,
     backgroundColor: C.gray50,
+    justifyContent:  "center",
   },
-  stampText: {
+  stampInner: {
+    borderWidth:  1,
+    borderColor:  C.gray300,
+    borderRadius: 4,
+    borderStyle:  "dashed",
+    paddingTop:   10,
+    paddingBottom: 10,
+    paddingLeft:  12,
+    paddingRight: 12,
+    alignItems:   "center",
+  },
+  stampTitle: {
+    fontSize:     7,
+    fontFamily:   "Helvetica-Bold",
+    color:        C.gray500,
+    textAlign:    "center",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  stampPending: {
     fontSize:   6.5,
     color:      C.gray400,
     textAlign:  "center",
-    fontFamily: "Helvetica-Bold",
-    marginTop:  6,
+    lineHeight: 1.5,
   },
-  stampSub: {
-    fontSize:  5.5,
-    color:     C.gray300,
-    textAlign: "center",
-    marginTop: 3,
+  stampNote: {
+    fontSize:   5.5,
+    color:      C.gray300,
+    textAlign:  "center",
+    marginTop:  5,
+    fontStyle:  "italic",
   },
   totalsBox: {
     width:        190,
@@ -397,36 +415,8 @@ const fmtLong = (iso) => {
   });
 };
 
-/* ─── QR placeholder (simple SVG path via canvas-like rects) ─ */
-function QRPlaceholder() {
-  const blocks = [
-    [0,0,3,3],[4,0,1,1],[6,0,1,1],[0,4,1,1],[2,4,1,1],[4,4,1,1],[6,4,1,1],
-    [0,6,3,3],[4,6,1,1],[6,6,1,1],[3,2,1,1],[2,3,1,1],[5,2,1,1],[3,5,1,1],
-    [5,5,1,1],[2,6,1,1],[4,2,1,1],[6,2,1,1],[3,3,1,1],[5,3,1,1],
-  ];
-  const unit = 5;
-  return (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", width: 40, height: 40 }}>
-      {blocks.map(([cx, cy, w, h], i) => (
-        <View
-          key={i}
-          style={{
-            position:        "absolute",
-            left:            cx * unit,
-            top:             cy * unit,
-            width:           w * unit,
-            height:          h * unit,
-            backgroundColor: "#9ca3af",
-            borderRadius:    1,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
 /* ─── Main document ─────────────────────── */
-export default function InvoicePdfDocument({ form, items, tenant, deptName }) {
+export default function InvoicePdfDocument({ form, items, tenant, deptName, draft = true }) {
   const subtotal = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0);
   const tax      = subtotal * (Number(form.tax_rate ?? 0) / 100);
   const total    = subtotal + tax;
@@ -448,8 +438,8 @@ export default function InvoicePdfDocument({ form, items, tenant, deptName }) {
     <Document title={`Factura - ${tenant?.name ?? ""}`} author="Stratek SPA">
       <Page size="A4" style={s.page}>
 
-        {/* Marca de agua */}
-        <Text style={s.watermark} fixed>BORRADOR</Text>
+        {/* Marca de agua — solo en borrador */}
+        {draft && <Text style={s.watermark} fixed>BORRADOR</Text>}
 
         {/* ══ CABECERA ══════════════════════════════════ */}
         <View style={s.header}>
@@ -587,9 +577,15 @@ export default function InvoicePdfDocument({ form, items, tenant, deptName }) {
 
           {/* Timbre */}
           <View style={s.stampBox}>
-            <QRPlaceholder />
-            <Text style={s.stampText}>Timbre Electrónico SII</Text>
-            <Text style={s.stampSub}>Res.99 de 2014 — Verifique documento: www.sii.cl</Text>
+            <View style={s.stampInner}>
+              <Text style={s.stampTitle}>TIMBRE ELECTRÓNICO SII</Text>
+              <Text style={s.stampPending}>
+                Este documento es un borrador de pre-factura.{"\n"}
+                El timbre electrónico será generado por el SII{"\n"}
+                al emitir el DTE oficial.
+              </Text>
+              <Text style={s.stampNote}>Res. Ex. SII N° 80 de 2014 — www.sii.cl</Text>
+            </View>
           </View>
 
           {/* Totales */}

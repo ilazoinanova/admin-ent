@@ -224,6 +224,12 @@
     "activeServicesOf": "Servicios activos de",
     "selectServicesHint": "Selecciona los que se incluirán en la factura.",
     "noActiveServicesAssigned": "Este cliente no tiene servicios activos asignados.",
+    "noServiceDataForPeriod": "Ningún servicio tiene datos facturables en este período.",
+    "downloadExcel": "Descargar Excel",
+    "applySelection": "Aplicar selección",
+    "included": "Incluido",
+    "yes": "Sí",
+    "no": "No",
     "servicesSelected": "servicio(s) seleccionado(s)",
     "addManualItem": "Agregar ítem manual",
     "itemDescriptionPh": "Descripción del ítem",
@@ -269,6 +275,7 @@
     "descriptionItemError": "Completa la descripción de todos los ítems",
     "quantityError": "La cantidad debe ser mayor a 0",
     "invoiceCreated": "Factura creada exitosamente",
+    "downloadPdf": "Descargar PDF",
     "invoiceCreateError": "Error al crear la factura",
     "invoiceDeptTitle": "Esta compañía factura por departamento",
     "invoiceDeptHint": "Selecciona el departamento al que se le emitirá esta factura",
@@ -415,5 +422,20 @@
     "autoCalculated": "Cálculo automático",
     "licensedUsers": "usuarios",
     "licensePreviewError": "Error al calcular las licencias activas del período",
-    "activeLicensesInPeriod": "Licencias activas en el período"
+    "activeLicensesInPeriod": "Licencias activas en el período",
+
+    "integrationAutoCalc": "Integración calculada",
+    "documentsProcessed": "documentos",
+    "integrationPreviewError": "Error al calcular las integraciones del período",
+
+    "integrationViewDocs": "Ver documentos",
+    "integrationDocsTitle": "Documentos a facturar",
+    "integrationDocsError": "Error al cargar el listado de documentos",
+    "integrationDocsEmpty": "No se encontraron documentos para este período",
+    "integrationDocsDedup": "Registros únicos · sin duplicados",
+    "integrationProject": "Proyecto",
+    "integrationSystem": "Sistema",
+    "integrationOtNumber": "N° OT",
+    "integrationReportType": "Tipo Reporte",
+    "date": "Fecha"
 }

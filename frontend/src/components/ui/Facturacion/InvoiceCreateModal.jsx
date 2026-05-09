@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { X, ChevronRight, ChevronLeft, Plus, Trash2, Building2, CalendarDays, Zap } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Plus, Trash2, Building2, CalendarDays, Zap, GitMerge, FileText, Download, CheckCircle } from "lucide-react";
+import { PDFDownloadLink } from "@react-pdf/renderer";
 import { toast } from "react-hot-toast";
 import { getTenants } from "../../../api/tenants/tenant.service";
-import { getTenantActiveServices, createInvoice, getLicenseBillingPreview } from "../../../api/invoices/invoice.service";
+import { getTenantActiveServices, createInvoice, getLicenseBillingPreview, getIntegrationBillingPreview } from "../../../api/invoices/invoice.service";
 import { fmtDate } from "../../../utils/date";
 import { getStoredMode } from "../../../utils/assignmentMode";
 import {
   buildAvailablePeriods, fmtPeriodDate, periodLabel, addDays,
 } from "../../../utils/billingPeriod";
 import InvoicePreview from "./InvoicePreview";
+import InvoicePdfDocument from "./InvoicePdfDocument";
+import IntegrationDocumentsModal from "./IntegrationDocumentsModal";
 
 const inputClass =
   "w-full border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder:text-gray-400 px-3 py-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed";
@@ -107,11 +110,15 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
   const [selectedServices, setSelectedServices] = useState([]);
   const [othersSelected,   setOthersSelected]   = useState(false);
   const [loadingServices,  setLoadingServices]  = useState(false);
-  const [loadingPreview,   setLoadingPreview]   = useState(false);
+  const [previewData,      setPreviewData]      = useState({ license: {}, integration: {} });
   const [items, setItems] = useState([]);
+  const [docsModal,       setDocsModal]       = useState(null); // índice del ítem integration, null = cerrado
+  const [invoiceCreated,  setInvoiceCreated]  = useState(false);
 
   // Servicio que factura por conteo de licencias activas en el período
-  const isLicenseService = (a) => a.unit === "user" && !!a.license_modalidad;
+  const isLicenseService     = (a) => a.unit === "user"        && !!a.license_modalidad;
+  // Servicio que factura por documentos únicos enviados — precio fijo desde el assignment
+  const isIntegrationService = (a) => a.unit === "integration";
 
   // ── Debounce búsqueda de tenants ──────────────────────────────────────────
   useEffect(() => {
@@ -234,12 +241,45 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
   };
 
   // ── Pasos ────────────────────────────────────────────────────────────────
-  const handleStep1Next = () => {
+  const handleStep1Next = async () => {
     if (!form.tenant_id)      return toast.error(t("selectClientError"));
     if (!form.billing_period) return toast.error(t("selectPeriodError"));
     if (!form.issue_date)     return toast.error(t("selectIssueDateError"));
     if (hasDeptAssignments && !form.department_id) return toast.error(t("selectDeptError"));
-    setSelectedServices([]); setStep(2);
+
+    setSelectedServices([]);
+
+    const scopeAssignments       = getScopeAssignments();
+    const licenseAssignments     = scopeAssignments.filter(isLicenseService);
+    const integrationAssignments = scopeAssignments.filter(isIntegrationService);
+
+    if (licenseAssignments.length > 0 || integrationAssignments.length > 0) {
+      setLoadingServices(true);
+      const params = {
+        tenant_id:     form.tenant_id,
+        department_id: form.department_id ?? undefined,
+        period_from:   form.period_from,
+        period_to:     form.period_to,
+      };
+      try {
+        const [licenseRes, integrationRes] = await Promise.all([
+          licenseAssignments.length > 0     ? getLicenseBillingPreview(params)     : Promise.resolve({ data: { results: [] } }),
+          integrationAssignments.length > 0 ? getIntegrationBillingPreview(params) : Promise.resolve({ data: { results: [] } }),
+        ]);
+        setPreviewData({
+          license:     Object.fromEntries((licenseRes.data?.results     ?? []).map((r) => [r.assignment_id, r])),
+          integration: Object.fromEntries((integrationRes.data?.results ?? []).map((r) => [r.assignment_id, r])),
+        });
+      } catch {
+        setPreviewData({ license: {}, integration: {} });
+      } finally {
+        setLoadingServices(false);
+      }
+    } else {
+      setPreviewData({ license: {}, integration: {} });
+    }
+
+    setStep(2);
   };
 
   const toggleService = (assignment) =>
@@ -249,43 +289,40 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
         : [...prev, assignment]
     );
 
-  const handleStep2Next = async () => {
+  const handleStep2Next = () => {
     if (selectedServices.length === 0 && !othersSelected) return toast.error(t("selectServiceError"));
 
-    const licenseServices = selectedServices.filter(isLicenseService);
-    const regularServices  = selectedServices.filter((a) => !isLicenseService(a));
+    const licenseServices     = selectedServices.filter(isLicenseService);
+    const integrationServices = selectedServices.filter(isIntegrationService);
+    const regularServices     = selectedServices.filter((a) => !isLicenseService(a) && !isIntegrationService(a));
 
-    let previewMap = {};
+    const licensePreviewMap     = previewData.license;
+    const integrationPreviewMap = previewData.integration;
 
-    if (licenseServices.length > 0 && form.period_from && form.period_to) {
-      setLoadingPreview(true);
-      try {
-        const res = await getLicenseBillingPreview({
-          tenant_id:     form.tenant_id,
-          department_id: form.department_id ?? undefined,
-          period_from:   form.period_from,
-          period_to:     form.period_to,
-        });
-        const results = res.data?.results ?? [];
-        previewMap = Object.fromEntries(results.map((r) => [r.assignment_id, r]));
-      } catch {
-        toast.error(t("licensePreviewError"));
-        setLoadingPreview(false);
-        return;
-      } finally {
-        setLoadingPreview(false);
-      }
-    }
-
-    // Ítems generados desde el cálculo automático de licencias — siempre un ítem por servicio
-    const licenseItems = licenseServices.map((a) => {
-      const preview     = previewMap[a.id];
+    // Licencias: tiered_escalating = un ítem por tramo; fixed/tiered_fixed = un ítem
+    const licenseItems = licenseServices.flatMap((a) => {
+      const preview     = licensePreviewMap[a.id];
       const serviceName = a.service?.name ?? t("service");
-      const count       = preview?.active_licenses_count ?? 0;
-      const total       = preview?.total_price ?? 0;
-      const unitPrice   = count > 0 ? Math.round((total / count) * 100) / 100 : 0;
+      const modalidad   = preview?.license_modalidad ?? a.license_modalidad;
+      const breakdown   = preview?.breakdown ?? [];
 
-      return {
+      if (modalidad === "tiered_escalating" && breakdown.length > 0) {
+        return breakdown.map((tier) => ({
+          tenant_service_id: a.id,
+          service_id:        a.service_id,
+          description:       `${serviceName} · ${tier.label}`,
+          quantity:          tier.count,
+          unit:              "user",
+          unit_price:        tier.price_per_user,
+          _auto:             true,
+        }));
+      }
+
+      const count     = preview?.active_licenses_count ?? 0;
+      const total     = preview?.total_price ?? 0;
+      const unitPrice = count > 0 ? Math.round((total / count) * 100) / 100 : 0;
+
+      return [{
         tenant_service_id: a.id,
         service_id:        a.service_id,
         description:       `${serviceName} · ${count} ${t("licensedUsers")}`,
@@ -293,10 +330,29 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
         unit:              "user",
         unit_price:        unitPrice,
         _auto:             true,
+      }];
+    });
+
+    // Integraciones: siempre 1 ítem — conteo documentos únicos × precio fijo del assignment
+    const integrationItems = integrationServices.map((a) => {
+      const preview     = integrationPreviewMap[a.id];
+      const serviceName = a.service?.name ?? t("service");
+      const count       = preview?.document_count     ?? 0;
+      const unitPrice   = preview?.price_per_document ?? 0;
+
+      return {
+        tenant_service_id: a.id,
+        service_id:        a.service_id,
+        description:       `${serviceName} · ${count} ${t("documentsProcessed")}`,
+        quantity:          count,
+        unit:              "integration",
+        unit_price:        unitPrice,
+        _auto:             true,
+        _integration:      true,
       };
     });
 
-    // Ítems de servicios sin modalidad de licencia (precio manual)
+    // Ítems de servicios sin modalidad automática (precio manual)
     const regularItems = regularServices.map((a) => ({
       tenant_service_id: a.id,
       service_id:        a.service_id,
@@ -310,7 +366,7 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
       ? [{ tenant_service_id: null, service_id: null, description: "", quantity: 1, unit: "", unit_price: 0 }]
       : [];
 
-    setItems([...licenseItems, ...regularItems, ...othersItem]);
+    setItems([...licenseItems, ...integrationItems, ...regularItems, ...othersItem]);
     setStep(3);
   };
 
@@ -341,9 +397,9 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
       await createInvoice({
         ...form,
         department_id: form.department_id ?? null,
-        items: items.map(({ _auto, ...i }) => ({ ...i, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })),
+        items: items.map(({ _auto, _integration, ...i }) => ({ ...i, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })),
       });
-      toast.success(t("invoiceCreated"));
+      setInvoiceCreated(true);
       onCreated();
     } catch {
       toast.error(t("invoiceCreateError"));
@@ -352,6 +408,33 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
     }
   };
 
+  // Ítems consolidados para el PDF (sin flags internos)
+  const consolidatedItemsForPdf = (() => {
+    const autoGroups = new Map();
+    const autoOrder  = [];
+    const manual     = [];
+    for (const item of items) {
+      if (item._auto && item.tenant_service_id != null) {
+        const key = item.tenant_service_id;
+        if (!autoGroups.has(key)) { autoGroups.set(key, { firstItem: item, total: 0 }); autoOrder.push(key); }
+        autoGroups.get(key).total += Number(item.quantity) * Number(item.unit_price);
+      } else {
+        // eslint-disable-next-line no-unused-vars
+        const { _auto, _integration, ...clean } = item;
+        manual.push(clean);
+      }
+    }
+    return [
+      ...autoOrder.map((key) => {
+        const { firstItem, total } = autoGroups.get(key);
+        // eslint-disable-next-line no-unused-vars
+        const { _auto, _integration, ...clean } = firstItem;
+        return { ...clean, description: clean.description.split(" · ")[0], quantity: 1, unit_price: total };
+      }),
+      ...manual,
+    ];
+  })();
+
   const selectedTenant   = form.tenant_id ? { name: tenantSearch } : null;
   const selectedDeptName = form.department_id
     ? invoiceDepartments.find((d) => d.id === form.department_id)?.name
@@ -359,7 +442,26 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
   const currentAssignments = getScopeAssignments();
   const selectedPeriod     = availablePeriods.find((p) => p.value === form.billing_period);
 
+  // Solo muestra en Step 2 los servicios con data en el período; regulares siempre visibles
+  const visibleAssignments = currentAssignments.filter((a) => {
+    if (isLicenseService(a))     return (previewData.license[a.id]?.active_licenses_count ?? 0) > 0;
+    if (isIntegrationService(a)) return (previewData.integration[a.id]?.document_count     ?? 0) > 0;
+    return true;
+  });
+
   return (
+    <>
+    {docsModal !== null && (
+      <IntegrationDocumentsModal
+        tenantId={form.tenant_id}
+        departmentId={form.department_id}
+        periodFrom={form.period_from}
+        periodTo={form.period_to}
+        currentQty={Number(items[docsModal]?.quantity ?? 0)}
+        onConfirm={(newQty) => { updateItem(docsModal, "quantity", newQty); setDocsModal(null); }}
+        onClose={() => setDocsModal(null)}
+      />
+    )}
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-3">
       <div
         className="bg-white dark:bg-gray-800 w-full rounded-xl shadow-xl flex flex-col border dark:border-gray-700 overflow-hidden transition-all duration-300"
@@ -609,7 +711,12 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {currentAssignments.map((a) => {
+                  {visibleAssignments.length === 0 && (
+                    <div className="text-center py-10 text-gray-400 dark:text-gray-500 text-sm border border-dashed dark:border-gray-600 rounded-xl">
+                      {t("noServiceDataForPeriod")}
+                    </div>
+                  )}
+                  {visibleAssignments.map((a) => {
                     const isSelected = selectedServices.some((s) => s.id === a.id);
                     return (
                       <div
@@ -632,6 +739,10 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
                         {isLicenseService(a) ? (
                           <span className="shrink-0 inline-flex items-center gap-1 text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full font-semibold">
                             <Zap size={10} />{t("autoCalculated")}
+                          </span>
+                        ) : isIntegrationService(a) ? (
+                          <span className="shrink-0 inline-flex items-center gap-1 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
+                            <GitMerge size={10} />{t("integrationAutoCalc")}
                           </span>
                         ) : (
                           <span className="text-sm font-bold text-gray-700 dark:text-gray-300 shrink-0">
@@ -684,29 +795,25 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
 
               {/* ── Tabla de ítems ── */}
               <div className="flex flex-col gap-3">
-                <div className="bg-[#0b1b3b] text-white rounded-xl grid grid-cols-[40px_1fr_90px_150px_140px_44px] gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                <div className="bg-[#0b1b3b] text-white rounded-xl grid grid-cols-[40px_1fr_90px_150px_140px_44px_44px] gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-wide">
                   <span className="text-center text-white/60">#</span>
                   <span>{t("descriptionLabel")}</span>
                   <span className="text-center">{t("quantity")}</span>
                   <span className="text-right">{t("unitPrice")}</span>
                   <span className="text-right">{t("total")}</span>
                   <span />
+                  <span />
                 </div>
                 <div className="flex flex-col gap-2">
                   {items.map((item, i) => (
                     <div
                       key={i}
-                      className="grid grid-cols-[40px_1fr_90px_150px_140px_44px] gap-3 items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 hover:border-blue-300 dark:hover:border-blue-500 transition"
+                      className="grid grid-cols-[40px_1fr_90px_150px_140px_44px_44px] gap-3 items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 hover:border-blue-300 dark:hover:border-blue-500 transition"
                     >
                       <span className="text-xs font-bold text-center text-white bg-[#0b1b3b]/80 dark:bg-[#0b1b3b] w-6 h-6 rounded-full flex items-center justify-center mx-auto shrink-0">
                         {i + 1}
                       </span>
                       <div className="flex flex-col gap-1 min-w-0">
-                        {item._auto && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            <Zap size={9} />{t("autoCalculated")}
-                          </span>
-                        )}
                         <input value={item.description} onChange={(e) => updateItem(i, "description", e.target.value)} className={inputClass} placeholder={t("itemDescriptionPh")} disabled={submitting} />
                       </div>
                       <input type="number" value={item.quantity} onChange={(e) => updateItem(i, "quantity", e.target.value)} className={`${inputClass} text-center`} min="0.01" disabled={submitting} />
@@ -722,6 +829,23 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
                       <button type="button" onClick={() => removeItem(i)} disabled={submitting} className="text-red-400 hover:text-red-600 disabled:opacity-50 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition mx-auto">
                         <Trash2 size={15} />
                       </button>
+                      {item._integration ? (
+                        <div className="relative group flex items-center justify-center mx-auto">
+                          <button
+                            type="button"
+                            onClick={() => setDocsModal(i)}
+                            disabled={submitting}
+                            className="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300 disabled:opacity-50 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition"
+                          >
+                            <FileText size={15} />
+                          </button>
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-[10px] font-medium bg-gray-800 dark:bg-gray-900 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                            {t("integrationViewDocs")}
+                          </span>
+                        </div>
+                      ) : (
+                        <span />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -836,36 +960,78 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t dark:border-gray-700 flex items-center justify-between shrink-0 bg-gray-50 dark:bg-gray-800/80 rounded-b-xl">
-          <button
-            onClick={step === 1 ? onClose : () => setStep((s) => s - 1)}
-            disabled={submitting}
-            className="flex items-center gap-1.5 text-sm border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            {step === 1 ? t("cancel") : <><ChevronLeft size={14} />{t("back")}</>}
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={
-                step === 1 ? handleStep1Next
-                : step === 2 ? handleStep2Next
-                : step === 3 ? handleStep3Next
-                : handleSubmit
-              }
-              disabled={submitting || loadingServices || loadingPreview || (step === 1 && loadingDeptInfo)}
-              className="flex items-center gap-1.5 bg-[#0b1b3b] text-white text-sm px-5 py-2 rounded-lg hover:bg-[#162d5e] disabled:opacity-60 disabled:cursor-not-allowed transition"
-            >
-              {submitting
-                ? t("saving")
-                : step === 4
-                ? t("createInvoiceButton")
-                : <>{t("next")}<ChevronRight size={14} /></>
-              }
-            </button>
+        {invoiceCreated ? (
+          <div className="px-6 py-5 border-t dark:border-gray-700 flex items-center justify-between shrink-0 bg-green-50 dark:bg-green-900/20 rounded-b-xl">
+            <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <CheckCircle size={18} />
+              <span className="text-sm font-semibold">{t("invoiceCreated")}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <PDFDownloadLink
+                document={
+                  <InvoicePdfDocument
+                    form={form}
+                    items={consolidatedItemsForPdf}
+                    tenant={selectedTenantObj}
+                    deptName={selectedDeptName}
+                    draft={false}
+                  />
+                }
+                fileName={`factura-${selectedTenantObj?.name?.replace(/\s+/g, "-") ?? "cliente"}-${form.billing_period ?? form.issue_date}.pdf`}
+              >
+                {({ loading }) => (
+                  <button
+                    type="button"
+                    disabled={loading}
+                    className="flex items-center gap-2 bg-[#0b1b3b] text-white text-sm px-4 py-2 rounded-lg hover:bg-[#162d5e] disabled:opacity-60 transition"
+                  >
+                    <Download size={14} />
+                    {loading ? t("loading") : t("downloadPdf")}
+                  </button>
+                )}
+              </PDFDownloadLink>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-sm border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 transition"
+              >
+                {t("close")}
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="px-6 py-4 border-t dark:border-gray-700 flex items-center justify-between shrink-0 bg-gray-50 dark:bg-gray-800/80 rounded-b-xl">
+            <button
+              onClick={step === 1 ? onClose : () => setStep((s) => s - 1)}
+              disabled={submitting}
+              className="flex items-center gap-1.5 text-sm border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {step === 1 ? t("cancel") : <><ChevronLeft size={14} />{t("back")}</>}
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={
+                  step === 1 ? handleStep1Next
+                  : step === 2 ? handleStep2Next
+                  : step === 3 ? handleStep3Next
+                  : handleSubmit
+                }
+                disabled={submitting || loadingServices || (step === 1 && loadingDeptInfo)}
+                className="flex items-center gap-1.5 bg-[#0b1b3b] text-white text-sm px-5 py-2 rounded-lg hover:bg-[#162d5e] disabled:opacity-60 disabled:cursor-not-allowed transition"
+              >
+                {submitting
+                  ? t("saving")
+                  : step === 4
+                  ? t("createInvoiceButton")
+                  : <>{t("next")}<ChevronRight size={14} /></>
+                }
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
+    </>
   );
 }
