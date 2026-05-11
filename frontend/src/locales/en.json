@@ -429,6 +429,7 @@
     "integrationPreviewError": "Error calculating integrations for the period",
 
     "integrationViewDocs": "View documents",
+    "integrationDocsInvoiced": "Invoiced integration documents",
     "integrationDocsTitle": "Documents to invoice",
     "integrationDocsError": "Error loading document list",
     "integrationDocsEmpty": "No documents found for this period",

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, CheckCircle, FileText, Send } from "lucide-react";
+import { X, CheckCircle, FileText, Send, GitMerge } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { updateInvoice } from "../../../api/invoices/invoice.service";
 import { fmtDate } from "../../../utils/date";
+import InvoiceIntegrationViewModal from "./InvoiceIntegrationViewModal";
 
 const STATUS_COLORS = {
   draft:     "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
@@ -24,6 +25,10 @@ const STATUS_KEYS = {
 export default function InvoiceDetailModal({ invoice, onClose, onStatusChange }) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [integrationOpen, setIntegrationOpen] = useState(false);
+
+  const integrationItems = (invoice.items ?? []).filter((i) => i.unit === "integration");
+  const hasIntegration   = integrationItems.length > 0;
 
   const fmt        = (n) => Number(n ?? 0).toLocaleString("es-CL");
   const colorClass = STATUS_COLORS[invoice.status] ?? STATUS_COLORS.draft;
@@ -44,7 +49,7 @@ export default function InvoiceDetailModal({ invoice, onClose, onStatusChange })
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 w-full max-w-5xl rounded-xl shadow-lg flex flex-col max-h-[90vh] border dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 w-full max-w-7xl rounded-xl shadow-lg flex flex-col max-h-[92vh] border dark:border-gray-700">
 
         {/* Header */}
         <div className="bg-[#0b1b3b] text-white px-6 py-4 rounded-t-xl flex items-center justify-between shrink-0">
@@ -62,7 +67,7 @@ export default function InvoiceDetailModal({ invoice, onClose, onStatusChange })
 
         {/* Body — dos paneles */}
         <div className="flex-1 overflow-hidden">
-          <div className="grid grid-cols-[300px_1fr] h-full divide-x dark:divide-gray-700">
+          <div className="grid grid-cols-[380px_1fr] h-full divide-x dark:divide-gray-700">
 
             {/* Panel izquierdo: metadata */}
             <div className="overflow-y-auto p-6 space-y-6">
@@ -119,10 +124,24 @@ export default function InvoiceDetailModal({ invoice, onClose, onStatusChange })
 
             {/* Panel derecho: ítems */}
             <div className="overflow-y-auto p-6">
-              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3">{t("items")}</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("items")}</p>
+                {hasIntegration && (
+                  <button
+                    onClick={() => setIntegrationOpen(true)}
+                    className="flex items-center gap-1.5 text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition font-medium"
+                  >
+                    <GitMerge size={12} />
+                    {t("integrationViewDocs")}
+                    <span className="ml-0.5 bg-emerald-600 text-white rounded-full px-1.5 py-0.5 text-[10px] leading-none">
+                      {integrationItems.reduce((acc, i) => acc + Number(i.quantity), 0)}
+                    </span>
+                  </button>
+                )}
+              </div>
 
               <div className="border dark:border-gray-600 rounded-xl overflow-hidden">
-                <div className="grid grid-cols-[1fr_80px_130px_120px] gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                <div className="grid grid-cols-[1fr_90px_150px_140px] gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   <span>{t("descriptionLabel")}</span>
                   <span>{t("quantity")}</span>
                   <span>{t("unitPriceShort")}</span>
@@ -133,7 +152,7 @@ export default function InvoiceDetailModal({ invoice, onClose, onStatusChange })
                   <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-10">{t("noItems")}</p>
                 ) : (
                   (invoice.items ?? []).map((item, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_80px_130px_120px] gap-3 px-4 py-3 border-t dark:border-gray-600 text-sm items-center hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
+                    <div key={i} className="grid grid-cols-[1fr_90px_150px_140px] gap-3 px-4 py-3 border-t dark:border-gray-600 text-sm items-center hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
                       <span className="text-gray-800 dark:text-gray-200">{item.description}</span>
                       <span className="text-gray-600 dark:text-gray-400">{item.quantity}</span>
                       <span className="text-gray-600 dark:text-gray-400">${fmt(item.unit_price)}</span>
@@ -180,6 +199,13 @@ export default function InvoiceDetailModal({ invoice, onClose, onStatusChange })
         </div>
 
       </div>
+
+      {integrationOpen && (
+        <InvoiceIntegrationViewModal
+          invoice={invoice}
+          onClose={() => setIntegrationOpen(false)}
+        />
+      )}
     </div>
   );
 }

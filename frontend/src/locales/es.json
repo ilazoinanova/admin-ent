@@ -429,6 +429,7 @@
     "integrationPreviewError": "Error al calcular las integraciones del período",
 
     "integrationViewDocs": "Ver documentos",
+    "integrationDocsInvoiced": "Documentos de integración facturados",
     "integrationDocsTitle": "Documentos a facturar",
     "integrationDocsError": "Error al cargar el listado de documentos",
     "integrationDocsEmpty": "No se encontraron documentos para este período",

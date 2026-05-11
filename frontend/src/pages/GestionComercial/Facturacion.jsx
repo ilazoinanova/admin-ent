@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Eye, CheckCircle, Trash2, FileText } from "lucide-react";
+import { Plus, Eye, CheckCircle, Trash2, FileText, Download } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { getInvoices, updateInvoice, deleteInvoice } from "../../api/invoices/invoice.service";
+import { pdf } from "@react-pdf/renderer";
+import { getInvoices, getInvoice, updateInvoice, deleteInvoice } from "../../api/invoices/invoice.service";
 import { fmtDate } from "../../utils/date";
 import InvoiceCreateModal from "../../components/ui/Facturacion/InvoiceCreateModal";
 import InvoiceDetailModal from "../../components/ui/Facturacion/InvoiceDetailModal";
+import InvoicePdfDocument from "../../components/ui/Facturacion/InvoicePdfDocument";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const STATUS_COLORS = {
@@ -46,6 +48,7 @@ export default function Facturacion() {
   const [detailInvoice, setDetailInvoice]   = useState(null);
   const [confirmDelete, setConfirmDelete]   = useState(null);
   const [confirmPaid, setConfirmPaid]       = useState(null);
+  const [downloadingId, setDownloadingId]   = useState(null);
 
   const loadInvoices = async (s = debouncedSearch, st = debouncedStatus, p = page) => {
     setLoading(true);
@@ -93,6 +96,38 @@ export default function Facturacion() {
       loadInvoices();
     } catch {
       toast.error(t("invoiceDeleteError"));
+    }
+  };
+
+  const handleDownloadPdf = async (inv) => {
+    setDownloadingId(inv.id);
+    try {
+      const res  = await getInvoice(inv.id);
+      const full = res.data;
+      const form = {
+        issue_date:     full.issue_date,
+        due_date:       full.due_date,
+        currency:       full.currency,
+        tax_rate:       full.tax_rate ?? 0,
+        tax_name:       full.tax_name ?? "",
+        notes:          full.notes ?? "",
+        billing_period: full.billing_period ?? null,
+        period_from:    full.period_from ?? null,
+        period_to:      full.period_to ?? null,
+      };
+      const blob = await pdf(
+        <InvoicePdfDocument form={form} items={full.items ?? []} tenant={full.tenant} deptName={full.department?.name ?? ""} draft={false} />
+      ).toBlob();
+      const url  = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href     = url;
+      link.download = `${full.invoice_number}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(t("invoiceLoadError"));
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -154,7 +189,7 @@ export default function Facturacion() {
 
       {/* Tabla */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_60px_1fr_100px] gap-3 px-4 py-3 bg-[#0b1b3b] text-white text-xs font-semibold">
+        <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_60px_1fr_130px] gap-3 px-4 py-3 bg-[#0b1b3b] text-white text-xs font-semibold">
           <span>{t("invoiceNumber")}</span>
           <span>{t("client")}</span>
           <span>{t("issueDate")}</span>
@@ -187,7 +222,7 @@ export default function Facturacion() {
             return (
               <div
                 key={inv.id}
-                className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_60px_1fr_100px] gap-3 px-4 py-3 border-t dark:border-gray-700 items-center text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
+                className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_60px_1fr_130px] gap-3 px-4 py-3 border-t dark:border-gray-700 items-center text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
               >
                 <span className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300">{inv.invoice_number}</span>
                 <span className="truncate text-gray-800 dark:text-gray-200">{inv.tenant?.name ?? "—"}</span>
@@ -203,6 +238,17 @@ export default function Facturacion() {
                 <div className="flex items-center justify-end gap-2">
                   <button onClick={() => setDetailInvoice(inv)} disabled={loading} title={t("viewDetails")} className="text-gray-400 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition">
                     <Eye size={15} />
+                  </button>
+                  <button
+                    onClick={() => handleDownloadPdf(inv)}
+                    disabled={downloadingId === inv.id}
+                    title={t("downloadPdf")}
+                    className="text-gray-400 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {downloadingId === inv.id
+                      ? <span className="inline-block w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                      : <Download size={15} />
+                    }
                   </button>
                   {canMarkPaid && (
                     <button onClick={() => setConfirmPaid(inv)} disabled={loading} title={t("markAsPaid")} className="text-gray-400 hover:text-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition">
