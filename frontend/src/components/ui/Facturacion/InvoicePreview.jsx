@@ -1,8 +1,6 @@
-import { PDFViewer } from "@react-pdf/renderer";
+import { usePDF } from "@react-pdf/renderer";
 import InvoicePdfDocument from "./InvoicePdfDocument";
 
-// Agrupa ítems automáticos por servicio en un único ítem (cantidad=1, precio=total)
-// Los ítems manuales se mantienen sin cambios.
 function consolidateForPreview(items) {
   const autoGroups = new Map();
   const autoOrder  = [];
@@ -33,17 +31,41 @@ function consolidateForPreview(items) {
 export default function InvoicePreview({ form, items, tenant, deptName }) {
   const previewItems = consolidateForPreview(items);
 
-  return (
-    <PDFViewer
-      style={{ width: "100%", height: "100%", border: "none" }}
-      showToolbar={true}
-    >
+  const [instance] = usePDF({
+    document: (
       <InvoicePdfDocument
         form={form}
         items={previewItems}
         tenant={tenant}
         deptName={deptName}
       />
-    </PDFViewer>
+    ),
+  });
+
+  if (instance.loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 bg-gray-100 dark:bg-gray-900">
+        <span className="w-10 h-10 border-4 border-gray-300 border-t-[#0b1b3b] rounded-full animate-spin" />
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+          Generando vista previa…
+        </p>
+      </div>
+    );
+  }
+
+  if (instance.error) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-red-500">
+        Error al generar la vista previa.
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      src={instance.url}
+      style={{ width: "100%", height: "100%", border: "none" }}
+      title="Vista previa factura"
+    />
   );
 }

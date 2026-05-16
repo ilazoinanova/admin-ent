@@ -11,6 +11,8 @@ import {
   Receipt,
   Wallet,
   ClipboardList,
+  Landmark,
+  ScrollText,
 } from "lucide-react";
 import logoFull from "../../assets/stratek.png";
 import logoIcon from "../../assets/stratek-icon.png";
@@ -21,17 +23,25 @@ const Sidebar = ({ collapsed }) => {
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState(false);
   const [openFloating, setOpenFloating] = useState(false);
+  const [openPagosMenu, setOpenPagosMenu] = useState(false);
+  const [openPagosFloating, setOpenPagosFloating] = useState(false);
   const floatingRef = useRef();
+  const pagosFloatingRef = useRef();
   const { user } = useAuth();
 
   useEffect(() => {
     if (
       location.pathname.includes("productos") ||
       location.pathname.includes("facturacion") ||
-      location.pathname.includes("cotizaciones") ||
-      location.pathname.includes("cuentas-pagar")
+      location.pathname.includes("cotizaciones")
     ) {
       setOpenMenu(true);
+    }
+    if (
+      location.pathname.includes("cuentas-pagar") ||
+      location.pathname.includes("registro-pagos")
+    ) {
+      setOpenPagosMenu(true);
     }
   }, [location.pathname]);
 
@@ -41,11 +51,11 @@ const Sidebar = ({ collapsed }) => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        floatingRef.current &&
-        !floatingRef.current.contains(event.target)
-      ) {
+      if (floatingRef.current && !floatingRef.current.contains(event.target)) {
         setOpenFloating(false);
+      }
+      if (pagosFloatingRef.current && !pagosFloatingRef.current.contains(event.target)) {
+        setOpenPagosFloating(false);
       }
     };
 
@@ -170,13 +180,6 @@ const Sidebar = ({ collapsed }) => {
                 closeMenu={() => setOpenFloating(false)}
               />
 
-              <SubItem
-                to="/cuentas-pagar"
-                icon={<Wallet size={16} />}
-                label={t("accountsPayable")}
-                closeMenu={() => setOpenFloating(false)}
-              />
-
             </div>
           )}
 
@@ -202,10 +205,81 @@ const Sidebar = ({ collapsed }) => {
                 label={t("quotes")}
               />
 
+            </div>
+          )}
+
+        </div>
+
+        {/* Gestión de Pagos */}
+        <div className="relative">
+
+          <button
+            onClick={() => {
+              if (collapsed) {
+                setOpenPagosFloating(!openPagosFloating);
+              } else {
+                setOpenPagosMenu(!openPagosMenu);
+              }
+            }}
+            className={`relative flex items-center ${
+              collapsed ? "justify-center" : "justify-between px-3"
+            } py-2 w-full rounded-lg text-sm transition group
+            text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800`}
+          >
+            <div className="flex items-center gap-3">
+              <Landmark size={18} />
+              {!collapsed && t("paymentManagement")}
+            </div>
+
+            {!collapsed && (
+              <ChevronDown
+                size={16}
+                className={`transition ${openPagosMenu ? "rotate-180" : ""}`}
+              />
+            )}
+
+            {collapsed && (
+              <span className="absolute left-14 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                {t("paymentManagement")}
+              </span>
+            )}
+          </button>
+
+          {/* Floating menu (colapsado) */}
+          {collapsed && openPagosFloating && (
+            <div ref={pagosFloatingRef} className="absolute left-full top-0 ml-2 bg-white dark:bg-gray-800 shadow-lg rounded-xl p-2 w-52 z-50 border dark:border-gray-700">
+
               <SubItem
                 to="/cuentas-pagar"
                 icon={<Wallet size={16} />}
                 label={t("accountsPayable")}
+                closeMenu={() => setOpenPagosFloating(false)}
+              />
+
+              <SubItem
+                to="/registro-pagos"
+                icon={<ScrollText size={16} />}
+                label={t("paymentLedger")}
+                closeMenu={() => setOpenPagosFloating(false)}
+              />
+
+            </div>
+          )}
+
+          {/* Submenú normal */}
+          {!collapsed && openPagosMenu && (
+            <div className="ml-6 mt-1 space-y-1">
+
+              <SubItem
+                to="/cuentas-pagar"
+                icon={<Wallet size={16} />}
+                label={t("accountsPayable")}
+              />
+
+              <SubItem
+                to="/registro-pagos"
+                icon={<ScrollText size={16} />}
+                label={t("paymentLedger")}
               />
 
             </div>

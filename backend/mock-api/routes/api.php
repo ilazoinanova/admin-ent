@@ -48,8 +48,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/billing/integration-documents', [IntegrationBillingController::class, 'documents']);
 
     Route::apiResource('payables', PayableController::class);
+    Route::get('/payable-payments', [PayablePaymentController::class, 'indexAll']);
     Route::get('/payables/{payableId}/payments', [PayablePaymentController::class, 'index']);
     Route::post('/payables/{payableId}/payments', [PayablePaymentController::class, 'store']);
+    Route::post('/payable-payments/{id}', [PayablePaymentController::class, 'update']);   // POST con _method=PUT para soportar multipart
     Route::put('/payable-payments/{id}', [PayablePaymentController::class, 'update']);
+    Route::get('/payable-payments/{id}/comprobante', [PayablePaymentController::class, 'comprobante']);
 
 });

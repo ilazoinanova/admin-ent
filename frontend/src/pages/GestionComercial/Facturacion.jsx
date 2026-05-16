@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Eye, CheckCircle, Trash2, FileText, Download } from "lucide-react";
+import { Plus, Eye, CheckCircle, Trash2, FileText, Download, Pencil } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { pdf } from "@react-pdf/renderer";
 import { getInvoices, getInvoice, updateInvoice, deleteInvoice } from "../../api/invoices/invoice.service";
+
 import { fmtDate } from "../../utils/date";
 import InvoiceCreateModal from "../../components/ui/Facturacion/InvoiceCreateModal";
 import InvoiceDetailModal from "../../components/ui/Facturacion/InvoiceDetailModal";
@@ -44,7 +45,9 @@ export default function Facturacion() {
   const [debouncedStatus, setDebouncedStatus]     = useState("");
   const [page, setPage]                           = useState(1);
   const [loading, setLoading]           = useState(false);
-  const [createOpen, setCreateOpen]     = useState(false);
+  const [createOpen, setCreateOpen]         = useState(false);
+  const [editInvoice, setEditInvoice]       = useState(null);
+  const [loadingEditId, setLoadingEditId]   = useState(null);
   const [detailInvoice, setDetailInvoice]   = useState(null);
   const [confirmDelete, setConfirmDelete]   = useState(null);
   const [confirmPaid, setConfirmPaid]       = useState(null);
@@ -96,6 +99,18 @@ export default function Facturacion() {
       loadInvoices();
     } catch {
       toast.error(t("invoiceDeleteError"));
+    }
+  };
+
+  const handleOpenEdit = async (inv) => {
+    setLoadingEditId(inv.id);
+    try {
+      const res = await getInvoice(inv.id);
+      setEditInvoice(res.data);
+    } catch {
+      toast.error(t("invoiceLoadError"));
+    } finally {
+      setLoadingEditId(null);
     }
   };
 
@@ -239,6 +254,19 @@ export default function Facturacion() {
                   <button onClick={() => setDetailInvoice(inv)} disabled={loading} title={t("viewDetails")} className="text-gray-400 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition">
                     <Eye size={15} />
                   </button>
+                  {inv.status === "draft" && (
+                    <button
+                      onClick={() => handleOpenEdit(inv)}
+                      disabled={loadingEditId === inv.id}
+                      title={t("editDraft")}
+                      className="text-gray-400 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      {loadingEditId === inv.id
+                        ? <span className="inline-block w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                        : <Pencil size={15} />
+                      }
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDownloadPdf(inv)}
                     disabled={downloadingId === inv.id}
@@ -298,6 +326,14 @@ export default function Facturacion() {
         <InvoiceCreateModal
           onClose={() => setCreateOpen(false)}
           onCreated={() => { setCreateOpen(false); loadInvoices(); }}
+        />
+      )}
+
+      {editInvoice && (
+        <InvoiceCreateModal
+          invoiceToEdit={editInvoice}
+          onClose={() => setEditInvoice(null)}
+          onCreated={() => { setEditInvoice(null); loadInvoices(); }}
         />
       )}
 

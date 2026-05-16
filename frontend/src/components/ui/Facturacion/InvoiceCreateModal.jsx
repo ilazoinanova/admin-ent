@@ -4,7 +4,7 @@ import { X, ChevronRight, ChevronLeft, Plus, Trash2, Building2, CalendarDays, Za
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { toast } from "react-hot-toast";
 import { getTenants } from "../../../api/tenants/tenant.service";
-import { getTenantActiveServices, createInvoice, getLicenseBillingPreview, getIntegrationBillingPreview } from "../../../api/invoices/invoice.service";
+import { getTenantActiveServices, createInvoice, updateInvoice, getLicenseBillingPreview, getIntegrationBillingPreview } from "../../../api/invoices/invoice.service";
 import { fmtDate } from "../../../utils/date";
 import { getStoredMode } from "../../../utils/assignmentMode";
 import {
@@ -44,21 +44,39 @@ const resolveBilling = (dept, company) => {
   };
 };
 
-export default function InvoiceCreateModal({ onClose, onCreated }) {
+export default function InvoiceCreateModal({ onClose, onCreated, invoiceToEdit = null }) {
   const { t } = useTranslation();
-  const STEPS = [t("clientData"), t("serviceSelection"), t("reviewTotals"), t("invoicePreviewStep")];
+  const isEditMode = !!invoiceToEdit;
+
+  // En edición se omite el paso 2 (selección de servicios): 3 pasos visibles
+  const STEPS = isEditMode
+    ? [t("clientData"), t("reviewTotals"), t("invoicePreviewStep")]
+    : [t("clientData"), t("serviceSelection"), t("reviewTotals"), t("invoicePreviewStep")];
 
   const [step, setStep]             = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
   // Búsqueda de cliente
   const [tenants, setTenants]                   = useState([]);
-  const [tenantSearch, setTenantSearch]         = useState("");
+  const [tenantSearch, setTenantSearch]         = useState(invoiceToEdit?.tenant?.name ?? "");
   const [showDropdown, setShowDropdown]         = useState(false);
-  const [selectedTenantObj, setSelectedTenantObj] = useState(null);
-  const justSelected = useRef(false);
+  const [selectedTenantObj, setSelectedTenantObj] = useState(invoiceToEdit?.tenant ?? null);
+  const justSelected    = useRef(false);
+  const skipApplyBilling = useRef(isEditMode); // En edit, no sobreescribir el form al cargar billing
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => invoiceToEdit ? {
+    tenant_id:      invoiceToEdit.tenant_id,
+    department_id:  invoiceToEdit.department_id ?? null,
+    billing_period: invoiceToEdit.billing_period ?? "",
+    period_from:    invoiceToEdit.period_from    ?? "",
+    period_to:      invoiceToEdit.period_to      ?? "",
+    issue_date:     invoiceToEdit.issue_date,
+    due_date:       invoiceToEdit.due_date        ?? "",
+    tax_rate:       String(invoiceToEdit.tax_rate ?? 0),
+    tax_name:       invoiceToEdit.tax_name        ?? "",
+    currency:       invoiceToEdit.currency        ?? "CLP",
+    notes:          invoiceToEdit.notes           ?? "",
+  } : {
     tenant_id:      "",
     department_id:  null,
     billing_period: "",
@@ -111,7 +129,10 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
   const [othersSelected,   setOthersSelected]   = useState(false);
   const [loadingServices,  setLoadingServices]  = useState(false);
   const [previewData,      setPreviewData]      = useState({ license: {}, integration: {} });
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(() => invoiceToEdit
+    ? (invoiceToEdit.items ?? []).map(({ id, invoice_id, total, ...rest }) => rest)
+    : []
+  );
   const [docsModal,       setDocsModal]       = useState(null); // índice del ítem integration, null = cerrado
   const [invoiceCreated,  setInvoiceCreated]  = useState(false);
 
@@ -167,7 +188,15 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
         };
         setCompanyBilling(cb);
 
-        if (hasDept && departments.length > 0) {
+        if (skipApplyBilling.current) {
+          // Modo edición: solo calcular activeBilling para los períodos disponibles,
+          // sin sobreescribir el formulario ya pre-llenado.
+          const deptId = form.department_id;
+          const dept   = departments.find((d) => d.id === deptId) ?? null;
+          const ab     = resolveBilling(dept, cb);
+          setActiveBilling(ab);
+          skipApplyBilling.current = false;
+        } else if (hasDept && departments.length > 0) {
           const preferredId    = stored?.deptId ? departments.find((d) => d.id === stored.deptId)?.id : null;
           const selectedDeptId = preferredId ?? departments[0].id;
           const selectedDept   = departments.find((d) => d.id === selectedDeptId);
@@ -245,7 +274,10 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
     if (!form.tenant_id)      return toast.error(t("selectClientError"));
     if (!form.billing_period) return toast.error(t("selectPeriodError"));
     if (!form.issue_date)     return toast.error(t("selectIssueDateError"));
-    if (hasDeptAssignments && !form.department_id) return toast.error(t("selectDeptError"));
+    if (!isEditMode && hasDeptAssignments && !form.department_id) return toast.error(t("selectDeptError"));
+
+    // En edición, saltar directamente al paso 3 (ítems ya pre-cargados)
+    if (isEditMode) { setStep(3); return; }
 
     setSelectedServices([]);
 
@@ -393,16 +425,34 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      // eslint-disable-next-line no-unused-vars
-      await createInvoice({
-        ...form,
-        department_id: form.department_id ?? null,
-        items: items.map(({ _auto, _integration, ...i }) => ({ ...i, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })),
-      });
+      const cleanItems = items.map(({ _auto, _integration, ...i }) => ({
+        ...i, quantity: Number(i.quantity), unit_price: Number(i.unit_price),
+      }));
+      if (isEditMode) {
+        await updateInvoice(invoiceToEdit.id, {
+          billing_period: form.billing_period,
+          period_from:    form.period_from,
+          period_to:      form.period_to,
+          issue_date:     form.issue_date,
+          due_date:       form.due_date  || null,
+          tax_rate:       Number(form.tax_rate),
+          tax_name:       form.tax_name  || null,
+          currency:       form.currency,
+          notes:          form.notes     || null,
+          items:          cleanItems,
+        });
+      } else {
+        // eslint-disable-next-line no-unused-vars
+        await createInvoice({
+          ...form,
+          department_id: form.department_id ?? null,
+          items: cleanItems,
+        });
+      }
       setInvoiceCreated(true);
       onCreated();
     } catch {
-      toast.error(t("invoiceCreateError"));
+      toast.error(isEditMode ? t("invoiceUpdateError") : t("invoiceCreateError"));
     } finally {
       setSubmitting(false);
     }
@@ -437,9 +487,13 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
 
   const selectedTenant   = form.tenant_id ? { name: tenantSearch } : null;
   const selectedDeptName = form.department_id
-    ? invoiceDepartments.find((d) => d.id === form.department_id)?.name
+    ? (invoiceDepartments.find((d) => d.id === form.department_id)?.name ?? invoiceToEdit?.department?.name ?? null)
     : null;
   const currentAssignments = getScopeAssignments();
+  // Paso visual: en edición los pasos reales son 1, 3, 4 → se mapean a 1, 2, 3
+  const displayStep = isEditMode
+    ? (step === 1 ? 1 : step === 3 ? 2 : 3)
+    : step;
   const selectedPeriod     = availablePeriods.find((p) => p.value === form.billing_period);
 
   // Solo muestra en Step 2 los servicios con data en el período; regulares siempre visibles
@@ -474,8 +528,15 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
         {/* Header */}
         <div className="bg-[#0b1b3b] text-white px-6 py-4 flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-base font-semibold">{t("newInvoice")}</h2>
-            <p className="text-xs text-white/60 mt-0.5">{t("step")} {step} {t("of")} 4 — {STEPS[step - 1]}</p>
+            <h2 className="text-base font-semibold">
+              {isEditMode ? t("editInvoiceDraft") : t("newInvoice")}
+            </h2>
+            {isEditMode && (
+              <p className="text-xs text-white/50 font-mono mt-0.5">{invoiceToEdit.invoice_number}</p>
+            )}
+            <p className="text-xs text-white/60 mt-0.5">
+              {t("step")} {displayStep} {t("of")} {STEPS.length} — {STEPS[displayStep - 1]}
+            </p>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white transition"><X size={18} /></button>
         </div>
@@ -484,12 +545,12 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
         <div className="flex border-b dark:border-gray-700 shrink-0">
           {STEPS.map((label, i) => (
             <div key={label} className={`flex-1 text-center py-3 text-xs font-semibold border-b-2 transition ${
-              step === i + 1 ? "border-[#0b1b3b] text-[#0b1b3b] dark:border-blue-400 dark:text-blue-400"
-              : step > i + 1 ? "border-green-500 text-green-600"
+              displayStep === i + 1 ? "border-[#0b1b3b] text-[#0b1b3b] dark:border-blue-400 dark:text-blue-400"
+              : displayStep > i + 1 ? "border-green-500 text-green-600"
               : "border-transparent text-gray-400 dark:text-gray-500"
             }`}>
               <span className="mr-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold border border-current">
-                {step > i + 1 ? "✓" : i + 1}
+                {displayStep > i + 1 ? "✓" : i + 1}
               </span>
               {label}
             </div>
@@ -502,22 +563,28 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
           {/* ── PASO 1 ── */}
           {step === 1 && (
             <>
-              {/* Búsqueda de cliente */}
+              {/* Búsqueda / display de cliente */}
               <div className="relative">
                 <label className={labelClass}>{t("clientRequired")}</label>
-                <input
-                  placeholder={t("searchClientPh")}
-                  value={tenantSearch}
-                  onChange={(e) => {
-                    setTenantSearch(e.target.value);
-                    if (form.tenant_id) {
-                      setForm((prev) => ({ ...prev, tenant_id: "", department_id: null, billing_period: "", period_from: "", period_to: "" }));
-                      setAllAssignments([]); setInvoiceDepartments([]); setHasDeptAssignments(false);
-                    }
-                  }}
-                  className={inputClass}
-                />
-                {showDropdown && tenants.length > 0 && (
+                {isEditMode ? (
+                  <div className={`${inputClass} bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 cursor-not-allowed`}>
+                    {tenantSearch}
+                  </div>
+                ) : (
+                  <input
+                    placeholder={t("searchClientPh")}
+                    value={tenantSearch}
+                    onChange={(e) => {
+                      setTenantSearch(e.target.value);
+                      if (form.tenant_id) {
+                        setForm((prev) => ({ ...prev, tenant_id: "", department_id: null, billing_period: "", period_from: "", period_to: "" }));
+                        setAllAssignments([]); setInvoiceDepartments([]); setHasDeptAssignments(false);
+                      }
+                    }}
+                    className={inputClass}
+                  />
+                )}
+                {!isEditMode && showDropdown && tenants.length > 0 && (
                   <div className="absolute z-10 w-full border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md mt-1 shadow max-h-48 overflow-y-auto">
                     {tenants.map((ten) => (
                       <div
@@ -531,7 +598,7 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
                     ))}
                   </div>
                 )}
-                {form.tenant_id && (
+                {form.tenant_id && !isEditMode && (
                   <p className="text-xs text-green-600 mt-1 font-medium">{t("clientSelected")}</p>
                 )}
               </div>
@@ -1002,7 +1069,11 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
         ) : (
           <div className="px-6 py-4 border-t dark:border-gray-700 flex items-center justify-between shrink-0 bg-gray-50 dark:bg-gray-800/80 rounded-b-xl">
             <button
-              onClick={step === 1 ? onClose : () => setStep((s) => s - 1)}
+              onClick={
+                step === 1         ? onClose
+                : isEditMode && step === 3 ? () => setStep(1)
+                : () => setStep((s) => s - 1)
+              }
               disabled={submitting}
               className="flex items-center gap-1.5 text-sm border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
@@ -1022,7 +1093,7 @@ export default function InvoiceCreateModal({ onClose, onCreated }) {
                 {submitting
                   ? t("saving")
                   : step === 4
-                  ? t("createInvoiceButton")
+                  ? (isEditMode ? t("saveChanges") : t("createInvoiceButton"))
                   : <>{t("next")}<ChevronRight size={14} /></>
                 }
               </button>

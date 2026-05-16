@@ -39,9 +39,7 @@ class PayableController extends Controller
 
             $currentPeriod = now()->format('Y-m');
 
-            $payables = $query->with(['payments' => function ($q) use ($currentPeriod) {
-                $q->where('period', $currentPeriod)->where('deleted', 0);
-            }])->orderBy('name')->paginate(20);
+            $payables = $query->orderBy('name')->paginate(20);
 
             $monthlyRaw = Payable::where('deleted', 0)->where('status', 1)->where('frequency', 'monthly')
                 ->selectRaw('currency, SUM(amount) as total_monthly')
@@ -51,11 +49,12 @@ class PayableController extends Controller
 
             $paymentsRaw = PayablePayment::where('payable_payments.deleted', 0)
                 ->join('payables', 'payable_payments.payable_id', '=', 'payables.id')
-                ->selectRaw("payables.currency,
-                    SUM(CASE WHEN payable_payments.period = ? AND payable_payments.status = 'paid' THEN payable_payments.amount_paid ELSE 0 END) as paid_this_month,
-                    SUM(CASE WHEN payable_payments.period = ? AND payable_payments.status = 'pending' THEN payable_payments.amount ELSE 0 END) as pending_amount,
-                    SUM(CASE WHEN payable_payments.status = 'overdue' THEN payable_payments.amount ELSE 0 END) as overdue_amount
-                ", [$currentPeriod, $currentPeriod])
+                ->where('payable_payments.period', $currentPeriod)
+                ->selectRaw('payables.currency,
+                    COUNT(*) as payment_count,
+                    SUM(payable_payments.amount) as registered_amount,
+                    SUM(COALESCE(payable_payments.amount_paid, 0)) as paid_amount
+                ')
                 ->groupBy('payables.currency')
                 ->get()
                 ->keyBy('currency');
@@ -64,10 +63,10 @@ class PayableController extends Controller
 
             $stats = $currencies->mapWithKeys(fn ($cur) => [
                 $cur => [
-                    'total_monthly'   => (float) ($monthlyRaw[$cur]->total_monthly   ?? 0),
-                    'paid_this_month' => (float) ($paymentsRaw[$cur]->paid_this_month ?? 0),
-                    'pending_amount'  => (float) ($paymentsRaw[$cur]->pending_amount  ?? 0),
-                    'overdue_amount'  => (float) ($paymentsRaw[$cur]->overdue_amount  ?? 0),
+                    'total_monthly'      => (float) ($monthlyRaw[$cur]->total_monthly   ?? 0),
+                    'registered_amount'  => (float) ($paymentsRaw[$cur]->registered_amount ?? 0),
+                    'paid_amount'        => (float) ($paymentsRaw[$cur]->paid_amount       ?? 0),
+                    'payment_count'      => (int)   ($paymentsRaw[$cur]->payment_count     ?? 0),
                 ],
             ]);
 

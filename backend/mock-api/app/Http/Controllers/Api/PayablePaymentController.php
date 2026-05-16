@@ -8,11 +8,40 @@ use App\Models\PayablePayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Throwable;
 
 class PayablePaymentController extends Controller
 {
+    public function indexAll(Request $request)
+    {
+        try {
+            $query = PayablePayment::with('payable:id,name,vendor,currency,category,frequency,due_day,amount,notes')
+                ->where('payable_payments.deleted', 0)
+                ->whereHas('payable', fn ($q) => $q->where('deleted', 0));
+
+            if ($search = $request->input('search')) {
+                $query->whereHas('payable', function ($q) use ($search) {
+                    $q->where('name',   'like', "%{$search}%")
+                      ->orWhere('vendor', 'like', "%{$search}%");
+                });
+            }
+
+            if ($period = $request->input('period')) {
+                $query->where('period', $period);
+            }
+
+            $payments = $query->orderBy('period', 'desc')->orderBy('due_date', 'asc')->paginate(25);
+
+            return response()->json($payments);
+        } catch (Throwable $e) {
+            Log::error('PayablePaymentController@indexAll: ' . $e->getMessage());
+
+            return response()->json(['message' => 'Error al obtener pagos'], 500);
+        }
+    }
+
     public function index($payableId)
     {
         try {
@@ -39,26 +68,39 @@ class PayablePaymentController extends Controller
     public function store(Request $request, $payableId)
     {
         $request->validate([
-            'period'    => 'required|string|size:7',   // "2026-04"
-            'due_date'  => 'required|date',
-            'amount'    => 'required|numeric|min:0',
-            'reference' => 'nullable|string|max:100',
-            'notes'     => 'nullable|string',
+            'period'      => 'required|string|size:7',
+            'due_date'    => 'required|date',
+            'amount'      => 'required|numeric|min:0',
+            'amount_paid' => 'nullable|numeric|min:0',
+            'paid_at'     => 'nullable|date',
+            'reference'   => 'nullable|string|max:100',
+            'notes'       => 'nullable|string',
+            'comprobante' => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,webp',
         ]);
 
         DB::beginTransaction();
         try {
             $payable = Payable::where('deleted', 0)->findOrFail($payableId);
 
-            $payment = PayablePayment::create([
-                'payable_id' => $payable->id,
-                'period'     => $request->period,
-                'due_date'   => $request->due_date,
-                'amount'     => $request->amount,
-                'status'     => 'pending',
-                'reference'  => $request->reference,
-                'notes'      => $request->notes,
-            ]);
+            $data = [
+                'payable_id'  => $payable->id,
+                'period'      => $request->period,
+                'due_date'    => $request->due_date,
+                'amount'      => $request->amount,
+                'amount_paid' => $request->amount_paid,
+                'paid_at'     => $request->paid_at,
+                'reference'   => $request->reference,
+                'notes'       => $request->notes,
+            ];
+
+            if ($request->hasFile('comprobante')) {
+                $file = $request->file('comprobante');
+                $path = $file->store('comprobantes', 'local');
+                $data['comprobante_path'] = $path;
+                $data['comprobante_name'] = $file->getClientOriginalName();
+            }
+
+            $payment = PayablePayment::create($data);
 
             DB::commit();
 
@@ -78,26 +120,28 @@ class PayablePaymentController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'status'      => 'sometimes|in:pending,paid,overdue',
             'amount_paid' => 'nullable|numeric|min:0',
             'paid_at'     => 'nullable|date',
             'reference'   => 'nullable|string|max:100',
             'notes'       => 'nullable|string',
+            'comprobante' => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,webp',
         ]);
 
         DB::beginTransaction();
         try {
             $payment = PayablePayment::where('deleted', 0)->findOrFail($id);
 
-            $data = $request->only(['status', 'amount_paid', 'paid_at', 'reference', 'notes']);
+            $data = $request->only(['amount_paid', 'paid_at', 'reference', 'notes']);
 
-            // Si se marca como pagado y no se especifica monto pagado, usar el monto de la cuenta
-            if (($data['status'] ?? null) === 'paid' && empty($data['amount_paid'])) {
-                $data['amount_paid'] = $payment->amount;
-            }
-
-            if (($data['status'] ?? null) === 'paid' && empty($data['paid_at'])) {
-                $data['paid_at'] = now()->toDateString();
+            if ($request->hasFile('comprobante')) {
+                // Eliminar archivo anterior si existe
+                if ($payment->comprobante_path) {
+                    Storage::disk('local')->delete($payment->comprobante_path);
+                }
+                $file = $request->file('comprobante');
+                $path = $file->store('comprobantes', 'local');
+                $data['comprobante_path'] = $path;
+                $data['comprobante_name'] = $file->getClientOriginalName();
             }
 
             $payment->update($data);
@@ -114,6 +158,33 @@ class PayablePaymentController extends Controller
             Log::error('PayablePaymentController@update: ' . $e->getMessage());
 
             return response()->json(['message' => 'Error al actualizar pago'], 500);
+        }
+    }
+
+    public function comprobante(Request $request, $id)
+    {
+        try {
+            $payment = PayablePayment::where('deleted', 0)->findOrFail($id);
+
+            if (!$payment->comprobante_path || !Storage::disk('local')->exists($payment->comprobante_path)) {
+                return response()->json(['message' => 'Comprobante no encontrado'], 404);
+            }
+
+            $path     = Storage::disk('local')->path($payment->comprobante_path);
+            $name     = $payment->comprobante_name ?? basename($payment->comprobante_path);
+            $mime     = mime_content_type($path);
+
+            if ($request->boolean('download')) {
+                return response()->download($path, $name, ['Content-Type' => $mime]);
+            }
+
+            return response()->file($path, ['Content-Type' => $mime]);
+        } catch (ModelNotFoundException) {
+            return response()->json(['message' => 'Pago no encontrado'], 404);
+        } catch (Throwable $e) {
+            Log::error('PayablePaymentController@comprobante: ' . $e->getMessage());
+
+            return response()->json(['message' => 'Error al obtener comprobante'], 500);
         }
     }
 }

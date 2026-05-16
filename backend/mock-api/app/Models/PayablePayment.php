@@ -13,9 +13,10 @@ class PayablePayment extends Model
         'amount',
         'amount_paid',
         'paid_at',
-        'status',
         'reference',
         'notes',
+        'comprobante_path',
+        'comprobante_name',
         'deleted',
     ];
 

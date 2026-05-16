@@ -164,16 +164,76 @@ class InvoiceController extends Controller
 
     public function update(Request $request, $id)
     {
-        $request->validate([
-            'status'   => 'sometimes|in:draft,sent,paid,overdue,cancelled',
-            'due_date' => 'sometimes|nullable|date',
-            'notes'    => 'sometimes|nullable|string',
-        ]);
-
         DB::beginTransaction();
         try {
             $invoice = Invoice::where('deleted', 0)->findOrFail($id);
-            $invoice->update($request->only(['status', 'due_date', 'notes']));
+
+            // Edición completa (solo borradores)
+            if ($request->has('items')) {
+                if ($invoice->status !== 'draft') {
+                    DB::rollBack();
+                    return response()->json(['message' => 'Solo se pueden editar facturas en estado borrador'], 422);
+                }
+
+                $request->validate([
+                    'billing_period'      => 'sometimes|string|max:7',
+                    'period_from'         => 'sometimes|date',
+                    'period_to'           => 'sometimes|date',
+                    'issue_date'          => 'sometimes|date',
+                    'due_date'            => 'nullable|date',
+                    'tax_rate'            => 'sometimes|numeric|min:0',
+                    'tax_name'            => 'nullable|string|max:50',
+                    'currency'            => 'sometimes|string|max:10',
+                    'notes'               => 'nullable|string',
+                    'items'               => 'required|array|min:1',
+                    'items.*.description' => 'required|string',
+                    'items.*.quantity'    => 'required|numeric|min:0.01',
+                    'items.*.unit_price'  => 'required|numeric|min:0',
+                ]);
+
+                $taxRate  = (float) $request->input('tax_rate', $invoice->tax_rate);
+                $subtotal = collect($request->items)->sum(fn ($i) => $i['quantity'] * $i['unit_price']);
+                $tax      = round($subtotal * ($taxRate / 100), 2);
+                $total    = round($subtotal + $tax, 2);
+
+                $invoice->update([
+                    'billing_period' => $request->input('billing_period', $invoice->billing_period),
+                    'period_from'    => $request->input('period_from',    $invoice->period_from),
+                    'period_to'      => $request->input('period_to',      $invoice->period_to),
+                    'issue_date'     => $request->input('issue_date',     $invoice->issue_date),
+                    'due_date'       => $request->input('due_date',       $invoice->due_date),
+                    'tax_rate'       => $taxRate,
+                    'tax_name'       => $request->input('tax_name',       $invoice->tax_name),
+                    'subtotal'       => round($subtotal, 2),
+                    'tax'            => $tax,
+                    'total'          => $total,
+                    'currency'       => $request->input('currency',       $invoice->currency),
+                    'notes'          => $request->input('notes',          $invoice->notes),
+                ]);
+
+                // Reemplazar ítems
+                InvoiceItem::where('invoice_id', $invoice->id)->delete();
+                foreach ($request->items as $item) {
+                    InvoiceItem::create([
+                        'invoice_id'        => $invoice->id,
+                        'tenant_service_id' => $item['tenant_service_id'] ?? null,
+                        'service_id'        => $item['service_id']        ?? null,
+                        'description'       => $item['description'],
+                        'quantity'          => $item['quantity'],
+                        'unit'              => $item['unit']              ?? null,
+                        'unit_price'        => $item['unit_price'],
+                        'total'             => round($item['quantity'] * $item['unit_price'], 2),
+                    ]);
+                }
+            } else {
+                // Actualización simple de estado/campos
+                $request->validate([
+                    'status'   => 'sometimes|in:draft,sent,paid,overdue,cancelled',
+                    'due_date' => 'sometimes|nullable|date',
+                    'notes'    => 'sometimes|nullable|string',
+                ]);
+                $invoice->update($request->only(['status', 'due_date', 'notes']));
+            }
 
             DB::commit();
 

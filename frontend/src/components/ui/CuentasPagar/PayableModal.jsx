@@ -60,7 +60,7 @@ export default function PayableModal({ open, onClose, onSubmit, initialData }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
@@ -72,7 +72,7 @@ export default function PayableModal({ open, onClose, onSubmit, initialData }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           {/* Fila 1: Nombre + Proveedor */}
           <div className="grid grid-cols-2 gap-4">
             <div>
