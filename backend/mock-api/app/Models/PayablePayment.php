@@ -7,7 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class PayablePayment extends Model
 {
     protected $fillable = [
+        'payment_period_id',
         'payable_id',
+        'is_additional',
+        'title',
+        'description',
         'period',
         'due_date',
         'amount',
@@ -21,15 +25,21 @@ class PayablePayment extends Model
     ];
 
     protected $casts = [
-        'amount'      => 'float',
-        'amount_paid' => 'float',
-        'deleted'     => 'integer',
-        'due_date'    => 'date:Y-m-d',
-        'paid_at'     => 'date:Y-m-d',
+        'amount'            => 'float',
+        'amount_paid'       => 'float',
+        'deleted'           => 'integer',
+        'is_additional'     => 'boolean',
+        'due_date'          => 'date:Y-m-d',
+        'paid_at'           => 'date:Y-m-d',
     ];
 
     public function payable()
     {
         return $this->belongsTo(Payable::class);
+    }
+
+    public function paymentPeriod()
+    {
+        return $this->belongsTo(PaymentPeriod::class);
     }
 }

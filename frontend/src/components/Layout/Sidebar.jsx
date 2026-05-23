@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Landmark,
   ScrollText,
+  CalendarDays,
 } from "lucide-react";
 import logoFull from "../../assets/stratek.png";
 import logoIcon from "../../assets/stratek-icon.png";
@@ -39,7 +40,8 @@ const Sidebar = ({ collapsed }) => {
     }
     if (
       location.pathname.includes("cuentas-pagar") ||
-      location.pathname.includes("registro-pagos")
+      location.pathname.includes("registro-pagos") ||
+      location.pathname.includes("periodos-pago")
     ) {
       setOpenPagosMenu(true);
     }
@@ -263,6 +265,13 @@ const Sidebar = ({ collapsed }) => {
                 closeMenu={() => setOpenPagosFloating(false)}
               />
 
+              <SubItem
+                to="/periodos-pago"
+                icon={<CalendarDays size={16} />}
+                label={t("paymentPeriods")}
+                closeMenu={() => setOpenPagosFloating(false)}
+              />
+
             </div>
           )}
 
@@ -280,6 +289,12 @@ const Sidebar = ({ collapsed }) => {
                 to="/registro-pagos"
                 icon={<ScrollText size={16} />}
                 label={t("paymentLedger")}
+              />
+
+              <SubItem
+                to="/periodos-pago"
+                icon={<CalendarDays size={16} />}
+                label={t("paymentPeriods")}
               />
 
             </div>

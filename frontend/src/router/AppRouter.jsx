@@ -10,6 +10,7 @@ import CuentasPagar from "../pages/GestionComercial/CuentasPagar";
 import Cotizaciones from "../pages/GestionComercial/Cotizaciones";
 import ServiciosCliente from "../pages/Asignaciones";
 import RegistroPagos from "../pages/GestionPagos/RegistroPagos";
+import PeriodosPago from "../pages/GestionPagos/PeriodosPago";
 
 const AppRouter = () => {
   return (
@@ -33,6 +34,7 @@ const AppRouter = () => {
                 <Route path="/cotizaciones" element={<Cotizaciones />} />
                 <Route path="/cuentas-pagar" element={<CuentasPagar />} />
                 <Route path="/registro-pagos" element={<RegistroPagos />} />
+                <Route path="/periodos-pago" element={<PeriodosPago />} />
               </Routes>
             </MainLayout>
           </PrivateRoute>

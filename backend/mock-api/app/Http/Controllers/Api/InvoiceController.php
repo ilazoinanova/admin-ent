@@ -177,8 +177,8 @@ class InvoiceController extends Controller
 
                 $request->validate([
                     'billing_period'      => 'sometimes|string|max:7',
-                    'period_from'         => 'sometimes|date',
-                    'period_to'           => 'sometimes|date',
+                    'period_from'         => 'sometimes|nullable|date',
+                    'period_to'           => 'sometimes|nullable|date',
                     'issue_date'          => 'sometimes|date',
                     'due_date'            => 'nullable|date',
                     'tax_rate'            => 'sometimes|numeric|min:0',
@@ -231,8 +231,9 @@ class InvoiceController extends Controller
                     'status'   => 'sometimes|in:draft,sent,paid,overdue,cancelled',
                     'due_date' => 'sometimes|nullable|date',
                     'notes'    => 'sometimes|nullable|string',
+                    'qr_url'   => 'sometimes|nullable|url|max:2048',
                 ]);
-                $invoice->update($request->only(['status', 'due_date', 'notes']));
+                $invoice->update($request->only(['status', 'due_date', 'notes', 'qr_url']));
             }
 
             DB::commit();

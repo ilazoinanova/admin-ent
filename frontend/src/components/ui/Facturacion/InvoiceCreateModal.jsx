@@ -130,7 +130,7 @@ export default function InvoiceCreateModal({ onClose, onCreated, invoiceToEdit =
   const [loadingServices,  setLoadingServices]  = useState(false);
   const [previewData,      setPreviewData]      = useState({ license: {}, integration: {} });
   const [items, setItems] = useState(() => invoiceToEdit
-    ? (invoiceToEdit.items ?? []).map(({ id, invoice_id, total, ...rest }) => rest)
+    ? (invoiceToEdit.items ?? []).map(({ id, invoice_id, total, service, created_at, updated_at, ...rest }) => rest)
     : []
   );
   const [docsModal,       setDocsModal]       = useState(null); // índice del ítem integration, null = cerrado
@@ -430,15 +430,15 @@ export default function InvoiceCreateModal({ onClose, onCreated, invoiceToEdit =
       }));
       if (isEditMode) {
         await updateInvoice(invoiceToEdit.id, {
-          billing_period: form.billing_period,
-          period_from:    form.period_from,
-          period_to:      form.period_to,
+          billing_period: form.billing_period  || null,
+          period_from:    form.period_from     || null,
+          period_to:      form.period_to       || null,
           issue_date:     form.issue_date,
-          due_date:       form.due_date  || null,
+          due_date:       form.due_date        || null,
           tax_rate:       Number(form.tax_rate),
-          tax_name:       form.tax_name  || null,
+          tax_name:       form.tax_name        || null,
           currency:       form.currency,
-          notes:          form.notes     || null,
+          notes:          form.notes           || null,
           items:          cleanItems,
         });
       } else {
@@ -451,8 +451,11 @@ export default function InvoiceCreateModal({ onClose, onCreated, invoiceToEdit =
       }
       setInvoiceCreated(true);
       onCreated();
-    } catch {
-      toast.error(isEditMode ? t("invoiceUpdateError") : t("invoiceCreateError"));
+    } catch (err) {
+      const serverMsg = err?.response?.data?.message
+        ?? Object.values(err?.response?.data?.errors ?? {}).flat()[0]
+        ?? null;
+      toast.error(serverMsg || (isEditMode ? t("invoiceUpdateError") : t("invoiceCreateError")));
     } finally {
       setSubmitting(false);
     }
@@ -494,7 +497,10 @@ export default function InvoiceCreateModal({ onClose, onCreated, invoiceToEdit =
   const displayStep = isEditMode
     ? (step === 1 ? 1 : step === 3 ? 2 : 3)
     : step;
-  const selectedPeriod     = availablePeriods.find((p) => p.value === form.billing_period);
+  const selectedPeriod = availablePeriods.find((p) => p.value === form.billing_period)
+    ?? (isEditMode && form.billing_period
+      ? { value: form.billing_period, label: periodLabel(form.billing_period), from: form.period_from, to: form.period_to }
+      : null);
 
   // Solo muestra en Step 2 los servicios con data en el período; regulares siempre visibles
   const visibleAssignments = currentAssignments.filter((a) => {
@@ -656,6 +662,11 @@ export default function InvoiceCreateModal({ onClose, onCreated, invoiceToEdit =
                     className="w-full border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   >
                     <option value="">{t("select")}...</option>
+                    {isEditMode && form.billing_period && !availablePeriods.find((p) => p.value === form.billing_period) && (
+                      <option value={form.billing_period}>
+                        {periodLabel(form.billing_period)} ({t("current")})
+                      </option>
+                    )}
                     {availablePeriods.map((p) => (
                       <option key={p.value} value={p.value}>{p.display}</option>
                     ))}

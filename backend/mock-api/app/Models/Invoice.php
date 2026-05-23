@@ -23,6 +23,7 @@ class Invoice extends Model
         'total',
         'currency',
         'notes',
+        'qr_url',
         'deleted',
     ];
 

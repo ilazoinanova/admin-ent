@@ -43,3 +43,15 @@ export const getPaymentComprobante = (id, download = false) =>
     responseType: "blob",
     params: download ? { download: 1 } : {},
   });
+
+export const initializePaymentPeriod = (periodId) =>
+  api.post(`/payment-periods/${periodId}/initialize`);
+
+export const createAdditionalPayment = (data) => {
+  if (data instanceof FormData) {
+    return api.post("/payable-payments/additional", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  }
+  return api.post("/payable-payments/additional", data);
+};

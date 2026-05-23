@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Eye, CheckCircle, Trash2, FileText, Download, Pencil } from "lucide-react";
+import { Plus, Eye, CheckCircle, Trash2, FileText, Download, Pencil, Link2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { pdf } from "@react-pdf/renderer";
+import QRCode from "qrcode";
 import { getInvoices, getInvoice, updateInvoice, deleteInvoice } from "../../api/invoices/invoice.service";
 
 import { fmtDate } from "../../utils/date";
@@ -10,6 +11,7 @@ import InvoiceCreateModal from "../../components/ui/Facturacion/InvoiceCreateMod
 import InvoiceDetailModal from "../../components/ui/Facturacion/InvoiceDetailModal";
 import InvoicePdfDocument from "../../components/ui/Facturacion/InvoicePdfDocument";
 import ConfirmModal from "../../components/ui/ConfirmModal";
+import InvoiceQrModal from "../../components/ui/Facturacion/InvoiceQrModal";
 
 const STATUS_COLORS = {
   draft:     "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
@@ -52,6 +54,7 @@ export default function Facturacion() {
   const [confirmDelete, setConfirmDelete]   = useState(null);
   const [confirmPaid, setConfirmPaid]       = useState(null);
   const [downloadingId, setDownloadingId]   = useState(null);
+  const [qrInvoice, setQrInvoice]           = useState(null);
 
   const loadInvoices = async (s = debouncedSearch, st = debouncedStatus, p = page) => {
     setLoading(true);
@@ -130,8 +133,11 @@ export default function Facturacion() {
         period_from:    full.period_from ?? null,
         period_to:      full.period_to ?? null,
       };
+      const qrImageUrl = full.qr_url
+        ? await QRCode.toDataURL(full.qr_url, { width: 300, margin: 1, errorCorrectionLevel: "M" })
+        : null;
       const blob = await pdf(
-        <InvoicePdfDocument form={form} items={full.items ?? []} tenant={full.tenant} deptName={full.department?.name ?? ""} draft={false} />
+        <InvoicePdfDocument form={form} items={full.items ?? []} tenant={full.tenant} deptName={full.department?.name ?? ""} draft={false} qrImageUrl={qrImageUrl} />
       ).toBlob();
       const url  = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -255,17 +261,26 @@ export default function Facturacion() {
                     <Eye size={15} />
                   </button>
                   {inv.status === "draft" && (
-                    <button
-                      onClick={() => handleOpenEdit(inv)}
-                      disabled={loadingEditId === inv.id}
-                      title={t("editDraft")}
-                      className="text-gray-400 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    >
-                      {loadingEditId === inv.id
-                        ? <span className="inline-block w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-                        : <Pencil size={15} />
-                      }
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setQrInvoice(inv)}
+                        title={t("qrModal.openButton")}
+                        className="text-gray-400 hover:text-purple-600 transition"
+                      >
+                        <Link2 size={15} />
+                      </button>
+                      <button
+                        onClick={() => handleOpenEdit(inv)}
+                        disabled={loadingEditId === inv.id}
+                        title={t("editDraft")}
+                        className="text-gray-400 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        {loadingEditId === inv.id
+                          ? <span className="inline-block w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                          : <Pencil size={15} />
+                        }
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={() => handleDownloadPdf(inv)}
@@ -364,6 +379,13 @@ export default function Facturacion() {
         confirmText={t("delete")}
         type="danger"
       />
+
+      {qrInvoice && (
+        <InvoiceQrModal
+          invoice={qrInvoice}
+          onClose={() => setQrInvoice(null)}
+        />
+      )}
 
     </div>
   );

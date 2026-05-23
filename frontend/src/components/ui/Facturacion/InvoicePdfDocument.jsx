@@ -18,7 +18,6 @@ const COMPANY = {
 const C = {
   navy:      "#0b1b3b",
   blue:      "#0b3e91",
-  red:       "#c0392b",
   gray50:    "#f9fafb",
   gray100:   "#f3f4f6",
   gray200:   "#e5e7eb",
@@ -97,61 +96,6 @@ const s = StyleSheet.create({
     fontStyle:    "italic",
     marginBottom: 6,
     lineHeight:   1.4,
-  },
-
-  /* Invoice type box */
-  invoiceBox: {
-    borderWidth:   2,
-    borderColor:   C.red,
-    borderRadius:  5,
-    padding:       14,
-    alignItems:    "center",
-    width:         200,
-    flexShrink:    0,
-  },
-  invoiceTypeText: {
-    fontSize:    10,
-    fontFamily:  "Helvetica-Bold",
-    color:       C.red,
-    textAlign:   "center",
-    lineHeight:  1.4,
-  },
-  invoiceNum: {
-    fontSize:      22,
-    fontFamily:    "Helvetica-Bold",
-    color:         C.blue,
-    marginTop:     6,
-    marginBottom:  4,
-    textAlign:     "center",
-  },
-  invoiceSii: {
-    fontSize:     7,
-    color:        C.gray500,
-    fontFamily:   "Helvetica-Bold",
-    textAlign:    "center",
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  invoiceDateBox: {
-    backgroundColor: C.gray100,
-    borderRadius:    4,
-    paddingTop:      4,
-    paddingBottom:   4,
-    paddingLeft:     8,
-    paddingRight:    8,
-    width:           "100%",
-  },
-  invoiceDateText: {
-    fontSize:   7.5,
-    color:      C.gray800,
-    textAlign:  "center",
-    fontFamily: "Helvetica-Bold",
-  },
-  invoiceDateSub: {
-    fontSize:   7,
-    color:      C.gray400,
-    textAlign:  "center",
-    marginTop:  4,
   },
 
   /* ── RECEPTOR ─────────────────────────────────── */
@@ -276,50 +220,25 @@ const s = StyleSheet.create({
     marginTop:     4,
     gap:           10,
   },
-  stampBox: {
+  qrBox: {
     flex:            1,
     borderWidth:     1,
-    borderColor:     C.gray300,
+    borderColor:     C.gray200,
     borderRadius:    6,
-    paddingTop:      12,
-    paddingBottom:   12,
-    paddingLeft:     14,
-    paddingRight:    14,
-    minHeight:       90,
-    backgroundColor: C.gray50,
+    paddingTop:      10,
+    paddingBottom:   10,
+    paddingLeft:     12,
+    paddingRight:    12,
+    alignItems:      "center",
     justifyContent:  "center",
+    backgroundColor: C.gray50,
   },
-  stampInner: {
-    borderWidth:  1,
-    borderColor:  C.gray300,
-    borderRadius: 4,
-    borderStyle:  "dashed",
-    paddingTop:   10,
-    paddingBottom: 10,
-    paddingLeft:  12,
-    paddingRight: 12,
-    alignItems:   "center",
-  },
-  stampTitle: {
-    fontSize:     7,
-    fontFamily:   "Helvetica-Bold",
-    color:        C.gray500,
+  qrLabel: {
+    fontSize:     6.5,
+    color:        C.gray400,
     textAlign:    "center",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  stampPending: {
-    fontSize:   6.5,
-    color:      C.gray400,
-    textAlign:  "center",
-    lineHeight: 1.5,
-  },
-  stampNote: {
-    fontSize:   5.5,
-    color:      C.gray300,
-    textAlign:  "center",
-    marginTop:  5,
-    fontStyle:  "italic",
+    marginTop:    6,
+    letterSpacing: 0.3,
   },
   totalsBox: {
     width:        190,
@@ -416,19 +335,19 @@ const fmtLong = (iso) => {
 };
 
 /* ─── Main document ─────────────────────── */
-export default function InvoicePdfDocument({ form, items, tenant, deptName, draft = true }) {
+export default function InvoicePdfDocument({ form, items, tenant, deptName, draft = true, qrImageUrl = null }) {
   const subtotal = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0);
   const tax      = subtotal * (Number(form.tax_rate ?? 0) / 100);
   const total    = subtotal + tax;
 
   const clientRows = [
-    { label: "SEÑOR(ES):",    value: tenant?.name    ?? "—", bold: true },
-    { label: "TIPO MONEDA:",  value: form.currency },
-    { label: "R.U.T.:",       value: tenant?.code    ?? "—" },
-    { label: "PAÍS DESTINO:", value: tenant?.country ?? "—" },
-    { label: "DIRECCIÓN:",    value: tenant?.address ?? "—" },
-    { label: "CIUDAD:",       value: tenant?.city    ?? "—" },
-    { label: "EMAIL:",        value: tenant?.email   ?? "—" },
+    { label: "SEÑOR(ES):",              value: tenant?.name    ?? "—", bold: true },
+    { label: "TIPO MONEDA:",            value: form.currency },
+    { label: "RUT / Transaction ID:",   value: tenant?.code    ?? "—" },
+    { label: "PAÍS DESTINO:",           value: tenant?.country ?? "—" },
+    { label: "DIRECCIÓN:",              value: tenant?.address ?? "—" },
+    { label: "CIUDAD:",                 value: tenant?.city    ?? "—" },
+    { label: "EMAIL:",                  value: tenant?.email   ?? "—" },
     { label: deptName ? "DEPARTAMENTO:" : "", value: deptName ?? "" },
   ];
 
@@ -464,23 +383,6 @@ export default function InvoicePdfDocument({ form, items, tenant, deptName, draf
             </View>
           </View>
 
-          {/* Caja tipo documento */}
-          <View style={s.invoiceBox}>
-            <Text style={s.invoiceTypeText}>FACTURA DE EXPORTACIÓN{"\n"}ELECTRÓNICA</Text>
-            <Text style={s.invoiceNum}>Nº —</Text>
-            <Text style={s.invoiceSii}>{COMPANY.sii}</Text>
-            <View style={s.invoiceDateBox}>
-              <Text style={s.invoiceDateText}>Fecha Emisión:</Text>
-              <Text style={[s.invoiceDateText, { fontFamily: "Helvetica", marginTop: 2 }]}>
-                {fmtLong(form.issue_date)}
-              </Text>
-            </View>
-            {form.due_date && (
-              <Text style={s.invoiceDateSub}>
-                Vence: {fmtLong(form.due_date)}
-              </Text>
-            )}
-          </View>
         </View>
 
         {/* ══ RECEPTOR ══════════════════════════════════ */}
@@ -572,21 +474,16 @@ export default function InvoicePdfDocument({ form, items, tenant, deptName, draf
           ))}
         </View>
 
-        {/* ══ PIE: TIMBRE + TOTALES ═════════════════════ */}
-        <View style={s.footer}>
+        {/* ══ PIE: QR + TOTALES ════════════════════════ */}
+        <View style={[s.footer, !qrImageUrl && { justifyContent: "flex-end" }]}>
 
-          {/* Timbre */}
-          <View style={s.stampBox}>
-            <View style={s.stampInner}>
-              <Text style={s.stampTitle}>TIMBRE ELECTRÓNICO SII</Text>
-              <Text style={s.stampPending}>
-                Este documento es un borrador de pre-factura.{"\n"}
-                El timbre electrónico será generado por el SII{"\n"}
-                al emitir el DTE oficial.
-              </Text>
-              <Text style={s.stampNote}>Res. Ex. SII N° 80 de 2014 — www.sii.cl</Text>
+          {/* QR — solo cuando se proporciona URL */}
+          {qrImageUrl && (
+            <View style={s.qrBox}>
+              <Image src={qrImageUrl} style={{ width: 90, height: 90 }} />
+              <Text style={s.qrLabel}>Escanea para ver el documento</Text>
             </View>
-          </View>
+          )}
 
           {/* Totales */}
           <View style={s.totalsBox}>

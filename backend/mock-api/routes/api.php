@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\TenantBillingConfigController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\LicenseBillingController;
 use App\Http\Controllers\Api\IntegrationBillingController;
+use App\Http\Controllers\Api\PaymentPeriodController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -54,5 +55,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payable-payments/{id}', [PayablePaymentController::class, 'update']);   // POST con _method=PUT para soportar multipart
     Route::put('/payable-payments/{id}', [PayablePaymentController::class, 'update']);
     Route::get('/payable-payments/{id}/comprobante', [PayablePaymentController::class, 'comprobante']);
+
+    Route::apiResource('payment-periods', PaymentPeriodController::class)->except(['show']);
+    Route::post('/payment-periods/{id}/toggle-active', [PaymentPeriodController::class, 'toggleActive']);
+    Route::post('/payment-periods/{id}/initialize',    [PaymentPeriodController::class, 'initialize']);
+
+    Route::post('/payable-payments/additional', [PayablePaymentController::class, 'storeAdditional']);
 
 });

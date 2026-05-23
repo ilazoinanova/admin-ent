@@ -161,6 +161,62 @@ class PayablePaymentController extends Controller
         }
     }
 
+    public function storeAdditional(Request $request)
+    {
+        $request->validate([
+            'payment_period_id' => 'required|exists:payment_periods,id',
+            'title'             => 'required|string|max:200',
+            'description'       => 'nullable|string',
+            'amount'            => 'nullable|numeric|min:0',
+            'amount_paid'       => 'nullable|numeric|min:0',
+            'paid_at'           => 'nullable|date',
+            'due_date'          => 'nullable|date',
+            'vendor'            => 'nullable|string|max:200',
+            'reference'         => 'nullable|string|max:100',
+            'notes'             => 'nullable|string',
+            'comprobante'       => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,webp',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $period      = \App\Models\PaymentPeriod::findOrFail($request->payment_period_id);
+            $legacyPeriod = $period->type === 'monthly'
+                ? $period->year . '-' . str_pad($period->month, 2, '0', STR_PAD_LEFT)
+                : (string) $period->year;
+
+            $data = [
+                'payment_period_id' => $request->payment_period_id,
+                'payable_id'        => null,
+                'is_additional'     => true,
+                'title'             => $request->title,
+                'description'       => $request->description,
+                'period'            => $legacyPeriod,
+                'due_date'          => $request->due_date,
+                'amount'            => $request->amount ?? $request->amount_paid ?? 0,
+                'amount_paid'       => $request->amount_paid,
+                'paid_at'           => $request->paid_at,
+                'reference'         => $request->reference,
+                'notes'             => $request->notes,
+                'deleted'           => 0,
+            ];
+
+            if ($request->hasFile('comprobante')) {
+                $file = $request->file('comprobante');
+                $data['comprobante_path'] = $file->store('comprobantes', 'local');
+                $data['comprobante_name'] = $file->getClientOriginalName();
+            }
+
+            $payment = PayablePayment::create($data);
+            DB::commit();
+
+            return response()->json($payment, 201);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('PayablePaymentController@storeAdditional: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al registrar pago adicional'], 500);
+        }
+    }
+
     public function comprobante(Request $request, $id)
     {
         try {
