@@ -25,10 +25,25 @@ class PaymentPeriodController extends Controller
         }
 
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('year', 'like', "%{$search}%")
-                  ->orWhere(DB::raw('LPAD(month, 2, "0")'), 'like', "%{$search}%");
+            $search = strtolower($request->search);
+            $monthsEs = [
+                1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+                5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+                9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+            ];
+            $matchedMonth = null;
+            foreach ($monthsEs as $num => $name) {
+                if (str_contains($name, $search)) {
+                    $matchedMonth = $num;
+                    break;
+                }
+            }
+
+            $query->where(function ($q) use ($search, $matchedMonth) {
+                $q->where('year', 'like', "%{$search}%");
+                if ($matchedMonth !== null) {
+                    $q->orWhere('month', $matchedMonth);
+                }
             });
         }
 
@@ -39,7 +54,8 @@ class PaymentPeriodController extends Controller
             $sort = 'year';
         }
 
-        $query->orderBy($sort, $direction === 'asc' ? 'asc' : 'desc')
+        $query->orderBy('active', 'desc')
+              ->orderBy($sort, $direction === 'asc' ? 'asc' : 'desc')
               ->orderBy('month', 'desc');
 
         $perPage = (int) $request->get('per_page', 15);
@@ -120,7 +136,16 @@ class PaymentPeriodController extends Controller
     {
         $period = PaymentPeriod::where('id', $id)->where('deleted', false)->firstOrFail();
 
-        $period->active = !$period->active;
+        if (!$period->active) {
+            // Al activar: desactivar todos los demás primero
+            PaymentPeriod::where('deleted', false)
+                ->where('id', '!=', $id)
+                ->update(['active' => false]);
+            $period->active = true;
+        } else {
+            $period->active = false;
+        }
+
         $period->save();
 
         return response()->json($period->fresh());

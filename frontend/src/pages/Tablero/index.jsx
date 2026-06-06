@@ -12,19 +12,23 @@ import { fmtDate } from "../../utils/date";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
 const STATUS_COLORS = {
-  draft:     "#9ca3af",
-  sent:      "#3b82f6",
-  paid:      "#22c55e",
-  overdue:   "#ef4444",
-  cancelled: "#6b7280",
+  draft:      "#9ca3af",
+  accounting: "#f59e0b",
+  sent:       "#3b82f6",
+  ready:      "#8b5cf6",
+  paid:       "#22c55e",
+  overdue:    "#ef4444",
+  cancelled:  "#6b7280",
 };
 
 const STATUS_LABELS = {
-  draft:     "Borrador",
-  sent:      "Enviada",
-  paid:      "Pagada",
-  overdue:   "Vencida",
-  cancelled: "Cancelada",
+  draft:      "Borrador",
+  accounting: "En contabilidad",
+  sent:       "Enviada",
+  ready:      "Lista",
+  paid:       "Pagada",
+  overdue:    "Vencida",
+  cancelled:  "Cancelada",
 };
 
 const PAYMENT_STATUS_COLORS = {
@@ -33,11 +37,13 @@ const PAYMENT_STATUS_COLORS = {
 };
 
 const INV_STATUS_COLORS = {
-  draft:     "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
-  sent:      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  paid:      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  overdue:   "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  cancelled: "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
+  draft:      "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
+  accounting: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  sent:       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  ready:      "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  paid:       "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  overdue:    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  cancelled:  "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
 };
 
 function fmtMonth(ym) {

@@ -26,3 +26,22 @@ export const getIntegrationBillingPreview = (params) =>
 
 export const getIntegrationDocuments = (params) =>
   api.get("/billing/integration-documents", { params });
+
+export const getTenantsWithInvoices = () =>
+  api.get("/invoices/tenants-with-invoices");
+
+export const getInvoiceBillingPeriods = (tenantId = null) =>
+  api.get("/invoices/billing-periods", { params: tenantId ? { tenant_id: tenantId } : {} });
+
+export const sendInvoiceToClient = (id, formData) =>
+  api.post(`/invoices/${id}/send-to-client`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+export const uploadFiscalPdf = (id, file) => {
+  const form = new FormData();
+  form.append("fiscal_pdf", file);
+  return api.post(`/invoices/${id}/upload-fiscal`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};

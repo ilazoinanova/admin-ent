@@ -7,24 +7,37 @@ use Illuminate\Support\Facades\DB;
 
 class LicenseBillingService
 {
+    public function __construct(private ExternalBillingApiService $externalApi) {}
+
+    // ── Conteo de licencias ───────────────────────────────────────────────────
+
     /**
-     * Cuenta user_licenses activas durante el período para un tenant/department.
-     * Una licencia se cobra si estuvo activa al menos un día dentro del período:
-     *   assigned_at <= period_to  AND  (unassigned_at IS NULL OR unassigned_at >= period_from)
+     * Obtiene el conteo de licencias activas desde la API de la app externa.
      */
     public function countBillableLicenses(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo): int
     {
-        return DB::table('user_licenses')
-            ->where('tenant_id', $tenantId)
-            ->where('department_id', $departmentId)
-            ->where('deleted', 0)
-            ->where('assigned_at', '<=', $periodTo)
-            ->where(function ($q) use ($periodFrom) {
-                $q->whereNull('unassigned_at')
-                  ->orWhere('unassigned_at', '>=', $periodFrom);
-            })
-            ->count();
+        return $this->externalApi->getLicenseCount($tenantId, $departmentId, $periodFrom, $periodTo);
     }
+
+    /*
+     * [LEGACY — consulta directa a BD, comentado tras migración a API externa]
+     *
+     * public function countBillableLicenses(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo): int
+     * {
+     *     return DB::table('user_licenses')
+     *         ->where('tenant_id', $tenantId)
+     *         ->where('department_id', $departmentId)
+     *         ->where('deleted', 0)
+     *         ->where('assigned_at', '<=', $periodTo)
+     *         ->where(function ($q) use ($periodFrom) {
+     *             $q->whereNull('unassigned_at')
+     *               ->orWhere('unassigned_at', '>=', $periodFrom);
+     *         })
+     *         ->count();
+     * }
+     */
+
+    // ── Cálculo por assignment ────────────────────────────────────────────────
 
     /**
      * Calcula el monto a cobrar dado un assignment activo y un período.
@@ -122,9 +135,9 @@ class LicenseBillingService
             ->orderBy('min_users')
             ->get();
 
-        $breakdown   = [];
-        $total       = 0.0;
-        $remaining   = $count;
+        $breakdown = [];
+        $total     = 0.0;
+        $remaining = $count;
 
         foreach ($tiers as $tier) {
             if ($remaining <= 0) {
@@ -147,7 +160,6 @@ class LicenseBillingService
             $remaining -= $usersInTier;
         }
 
-        // Si quedan usuarios fuera de rango, los absorbe el último tramo
         if ($remaining > 0 && $tiers->isNotEmpty()) {
             $lastTier     = $tiers->last();
             $pricePerUser = (float) $lastTier->price_per_user;

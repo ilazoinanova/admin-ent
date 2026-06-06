@@ -24,6 +24,8 @@ class PayablePayment extends Model
         'deleted',
     ];
 
+    protected $appends = ['status'];
+
     protected $casts = [
         'amount'            => 'float',
         'amount_paid'       => 'float',
@@ -32,6 +34,17 @@ class PayablePayment extends Model
         'due_date'          => 'date:Y-m-d',
         'paid_at'           => 'date:Y-m-d',
     ];
+
+    public function getStatusAttribute(): string
+    {
+        if ($this->paid_at !== null) {
+            return 'paid';
+        }
+        if ($this->due_date && $this->due_date->lt(now()->startOfDay())) {
+            return 'overdue';
+        }
+        return 'pending';
+    }
 
     public function payable()
     {

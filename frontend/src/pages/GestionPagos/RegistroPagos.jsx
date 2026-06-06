@@ -34,8 +34,14 @@ export default function RegistroPagos() {
     const load = async () => {
       setLoadingPeriods(true);
       try {
-        const res = await getAllPaymentPeriods({ sort: "year", direction: "desc", active: 1 });
-        setPeriods(res.data.data ?? []);
+        const res = await getAllPaymentPeriods({ sort: "year", direction: "desc" });
+        const all = res.data.data ?? [];
+        setPeriods(all);
+        // Auto-seleccionar el período activo si existe
+        const active = all.find((p) => p.active);
+        if (active) {
+          handleSelectPeriod(String(active.id), all);
+        }
       } catch {
         toast.error(t("rp.periodsLoadError"));
       } finally {
@@ -46,11 +52,12 @@ export default function RegistroPagos() {
   }, []);
 
   // ── Inicializar período seleccionado ─────────────────────────────────────────
-  const handleSelectPeriod = async (id) => {
+  const handleSelectPeriod = async (id, periodList = null) => {
     setSelectedPeriodId(id);
     if (!id) { setPayments([]); setSelectedPeriod(null); return; }
 
-    const period = periods.find((p) => String(p.id) === id) ?? null;
+    const list   = periodList ?? periods;
+    const period = list.find((p) => String(p.id) === id) ?? null;
     setSelectedPeriod(period);
     setLoadingPayments(true);
     try {
@@ -117,7 +124,8 @@ export default function RegistroPagos() {
             <option value="">{loadingPeriods ? t("rp.loadingPeriods") : t("rp.choosePeriod")}</option>
             {periods.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.label} — {p.type === "monthly" ? t("pp.monthly") : t("pp.annual")}
+                {p.active ? "● " : ""}{p.label} — {p.type === "monthly" ? t("pp.monthly") : t("pp.annual")}
+                {p.active ? ` (${t("pp.statusActive")})` : ""}
               </option>
             ))}
           </select>

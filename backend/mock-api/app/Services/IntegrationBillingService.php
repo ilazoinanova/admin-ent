@@ -7,25 +7,62 @@ use Illuminate\Support\Facades\DB;
 
 class IntegrationBillingService
 {
+    public function __construct(private ExternalBillingApiService $externalApi) {}
+
+    // ── Conteo de documentos ─────────────────────────────────────────────────
+
     /**
-     * Cuenta documentos únicos enviados durante el período para un tenant/department.
-     * Deduplicación por: project_id + system_integration_name + ot_number + date + report_type
-     * Criterios: sent = 1, sync_status = 'sent', deleted = 0, date BETWEEN period_from AND period_to
+     * Obtiene el conteo de documentos únicos facturables desde la API de la app externa.
      */
     public function countBillableDocuments(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo): int
     {
-        return DB::table('api_external_sent_documents_ot_files')
-            ->where('tenant_id', $tenantId)
-            ->where('department_id', $departmentId)
-            ->where('sent', 1)
-            ->where('sync_status', 'sent')
-            ->where('deleted', 0)
-            ->whereBetween('date', [$periodFrom, $periodTo])
-            ->select(['project_id', 'system_integration_name', 'ot_number', 'date', 'report_type'])
-            ->distinct()
-            ->get()
-            ->count();
+        return $this->externalApi->getIntegrationDocuments($tenantId, $departmentId, $periodFrom, $periodTo)['count'];
     }
+
+    /**
+     * Obtiene el conteo y el listado detallado de documentos desde la API externa.
+     * Usado por IntegrationBillingController@documents para el detalle previo a facturar.
+     */
+    public function getDocumentsFromApi(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo): array
+    {
+        return $this->externalApi->getIntegrationDocuments($tenantId, $departmentId, $periodFrom, $periodTo);
+    }
+
+    /*
+     * [LEGACY — consultas directas a BD, comentado tras migración a API externa]
+     *
+     * public function countBillableDocuments(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo): int
+     * {
+     *     return DB::table('api_external_sent_documents_ot_files')
+     *         ->where('tenant_id', $tenantId)
+     *         ->where('department_id', $departmentId)
+     *         ->where('sent', 1)
+     *         ->where('sync_status', 'sent')
+     *         ->where('deleted', 0)
+     *         ->whereBetween('date', [$periodFrom, $periodTo])
+     *         ->select(['project_id', 'system_integration_name', 'ot_number', 'date', 'report_type'])
+     *         ->distinct()
+     *         ->get()
+     *         ->count();
+     * }
+     *
+     * // Listado detallado de documentos (para vista previa antes de facturar):
+     * // DB::table('api_external_sent_documents_ot_files')
+     * //     ->where('tenant_id', $tenantId)
+     * //     ->where('department_id', $departmentId)
+     * //     ->where('sent', 1)
+     * //     ->where('sync_status', 'sent')
+     * //     ->where('deleted', 0)
+     * //     ->whereBetween('date', [$periodFrom, $periodTo])
+     * //     ->select(['project_id', 'system_integration_name', 'ot_number', 'date', 'report_type'])
+     * //     ->distinct()
+     * //     ->orderBy('date')
+     * //     ->orderBy('system_integration_name')
+     * //     ->orderBy('ot_number')
+     * //     ->get();
+     */
+
+    // ── Cálculo por assignment ────────────────────────────────────────────────
 
     /**
      * Precio fijo: conteo de documentos únicos × price del assignment.
@@ -33,14 +70,14 @@ class IntegrationBillingService
      */
     public function calculateForAssignment(TenantService $assignment, string $periodFrom, string $periodTo): array
     {
-        $count        = $this->countBillableDocuments(
+        $count       = $this->countBillableDocuments(
             $assignment->tenant_id,
             $assignment->department_id,
             $periodFrom,
             $periodTo
         );
-        $pricePerDoc  = (float) ($assignment->price ?? 0);
-        $total        = round($count * $pricePerDoc, 2);
+        $pricePerDoc = (float) ($assignment->price ?? 0);
+        $total       = round($count * $pricePerDoc, 2);
 
         return [
             'active_licenses_count' => $count,

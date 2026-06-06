@@ -191,7 +191,7 @@ export default function PeriodFormModal({ period, onClose, onSaved }) {
             {t("pp.preview")}{" "}
             <span className="font-mono font-bold text-gray-800 dark:text-gray-200">
               {form.type === "monthly"
-                ? `${String(form.month).padStart(2, "0")}-${form.year}`
+                ? `${MONTHS.find((m) => m.value === Number(form.month))?.label ?? form.month} ${form.year}`
                 : String(form.year)}
             </span>
             {" · "}{t("pp.from")} {t("pp.day")} {form.start_day} {t("pp.to")} {t("pp.day")} {form.end_day}

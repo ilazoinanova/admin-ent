@@ -7,19 +7,23 @@ import { fmtDate } from "../../../utils/date";
 import InvoiceIntegrationViewModal from "./InvoiceIntegrationViewModal";
 
 const STATUS_COLORS = {
-  draft:     "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-  sent:      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  paid:      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  overdue:   "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  cancelled: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
+  draft:      "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+  accounting: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  ready:      "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
+  sent:       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  paid:       "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  overdue:    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  cancelled:  "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
 };
 
 const STATUS_KEYS = {
-  draft:     "statusDraft",
-  sent:      "statusSent",
-  paid:      "statusPaid",
-  overdue:   "statusOverdue",
-  cancelled: "statusCancelled",
+  draft:      "statusDraft",
+  accounting: "statusAccounting",
+  ready:      "statusReady",
+  sent:       "statusSent",
+  paid:       "statusPaid",
+  overdue:    "statusOverdue",
+  cancelled:  "statusCancelled",
 };
 
 export default function InvoiceDetailModal({ invoice, onClose, onStatusChange }) {
@@ -175,18 +179,18 @@ export default function InvoiceDetailModal({ invoice, onClose, onStatusChange })
             {t("close")}
           </button>
 
-          {invoice.status === "draft" && (
+          {invoice.status === "ready" && (
             <button
               onClick={() => changeStatus("sent")}
               disabled={loading}
-              className="flex items-center gap-1.5 bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
+              className="flex items-center gap-1.5 bg-teal-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-teal-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
             >
               <Send size={14} />
               {loading ? t("saving") : t("markSent")}
             </button>
           )}
 
-          {["draft", "sent", "overdue"].includes(invoice.status) && (
+          {["sent", "overdue"].includes(invoice.status) && (
             <button
               onClick={() => changeStatus("paid")}
               disabled={loading}

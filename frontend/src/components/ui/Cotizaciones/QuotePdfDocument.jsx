@@ -140,8 +140,8 @@ export default function QuotePdfDocument({ form, items, tenant, deptName }) {
   const clientRows = [
     { label: "SEÑOR(ES):",    value: tenant?.name    ?? "—", bold: true },
     { label: "TIPO MONEDA:",  value: form.currency },
-    { label: "R.U.T.:",       value: tenant?.code    ?? "—" },
-    { label: "PAÍS DESTINO:", value: tenant?.country ?? "—" },
+    { label: "Transaction ID:", value: tenant?.code    ?? "—" },
+    { label: "PAÍS:",          value: tenant?.country ?? "—" },
     { label: "DIRECCIÓN:",    value: tenant?.address ?? "—" },
     { label: "CIUDAD:",       value: tenant?.city    ?? "—" },
     { label: "EMAIL:",        value: tenant?.email   ?? "—" },

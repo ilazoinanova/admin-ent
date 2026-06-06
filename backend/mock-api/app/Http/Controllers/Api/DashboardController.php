@@ -26,7 +26,7 @@ class DashboardController extends Controller
                 ->selectRaw("currency,
                     SUM(total) as total_invoiced,
                     SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END) as total_paid,
-                    SUM(CASE WHEN status IN ('draft','sent') THEN total ELSE 0 END) as total_pending,
+                    SUM(CASE WHEN status IN ('draft','accounting','ready','sent') THEN total ELSE 0 END) as total_pending,
                     SUM(CASE WHEN status = 'overdue' THEN total ELSE 0 END) as total_overdue,
                     COUNT(*) as total_count
                 ")
@@ -55,16 +55,27 @@ class DashboardController extends Controller
                 ->orderBy('month')
                 ->get();
 
-            // Cuentas por pagar: estado mes actual
+            // Cuentas por pagar: estado calculado desde paid_at y due_date
+            $today = now()->toDateString();
             $payableStats = [
-                'overdue_count' => PayablePayment::where('deleted', 0)->where('status', 'overdue')->count(),
-                'pending_count' => PayablePayment::where('deleted', 0)->where('period', $currentPeriod)->where('status', 'pending')->count(),
-                'paid_count'    => PayablePayment::where('deleted', 0)->where('period', $currentPeriod)->where('status', 'paid')->count(),
+                'overdue_count' => PayablePayment::where('deleted', 0)
+                    ->whereNull('paid_at')
+                    ->where('due_date', '<', $today)
+                    ->count(),
+                'pending_count' => PayablePayment::where('deleted', 0)
+                    ->where('period', $currentPeriod)
+                    ->whereNull('paid_at')
+                    ->where('due_date', '>=', $today)
+                    ->count(),
+                'paid_count'    => PayablePayment::where('deleted', 0)
+                    ->where('period', $currentPeriod)
+                    ->whereNotNull('paid_at')
+                    ->count(),
             ];
 
-            // Montos pendientes/vencidos por moneda
+            // Montos sin pagar este mes por moneda
             $pendingPayablesByCurrency = PayablePayment::where('payable_payments.deleted', 0)
-                ->whereIn('payable_payments.status', ['pending', 'overdue'])
+                ->whereNull('payable_payments.paid_at')
                 ->where('payable_payments.period', $currentPeriod)
                 ->join('payables', 'payable_payments.payable_id', '=', 'payables.id')
                 ->selectRaw('payables.currency, SUM(payable_payments.amount) as total')
@@ -79,12 +90,12 @@ class DashboardController extends Controller
                 ->limit(5)
                 ->get(['id', 'invoice_number', 'tenant_id', 'total', 'currency', 'status', 'issue_date']);
 
-            // Próximos pagos pendientes/vencidos del mes
+            // Próximos pagos sin pagar del período actual
             $upcomingPayments = PayablePayment::with('payable:id,name,currency')
-                ->where('payable_payments.deleted', 0)
-                ->whereIn('payable_payments.status', ['pending', 'overdue'])
-                ->where('payable_payments.period', $currentPeriod)
-                ->orderBy('payable_payments.due_date')
+                ->where('deleted', 0)
+                ->whereNull('paid_at')
+                ->where('period', $currentPeriod)
+                ->orderBy('due_date')
                 ->limit(5)
                 ->get();
 

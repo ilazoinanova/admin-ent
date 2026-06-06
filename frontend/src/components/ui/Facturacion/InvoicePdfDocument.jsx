@@ -343,8 +343,8 @@ export default function InvoicePdfDocument({ form, items, tenant, deptName, draf
   const clientRows = [
     { label: "SEÑOR(ES):",              value: tenant?.name    ?? "—", bold: true },
     { label: "TIPO MONEDA:",            value: form.currency },
-    { label: "RUT / Transaction ID:",   value: tenant?.code    ?? "—" },
-    { label: "PAÍS DESTINO:",           value: tenant?.country ?? "—" },
+    { label: "Transaction ID:",          value: tenant?.code    ?? "—" },
+    { label: "PAÍS:",                   value: tenant?.country ?? "—" },
     { label: "DIRECCIÓN:",              value: tenant?.address ?? "—" },
     { label: "CIUDAD:",                 value: tenant?.city    ?? "—" },
     { label: "EMAIL:",                  value: tenant?.email   ?? "—" },
@@ -481,7 +481,7 @@ export default function InvoicePdfDocument({ form, items, tenant, deptName, draf
           {qrImageUrl && (
             <View style={s.qrBox}>
               <Image src={qrImageUrl} style={{ width: 90, height: 90 }} />
-              <Text style={s.qrLabel}>Escanea para ver el documento</Text>
+              <Text style={s.qrLabel}>Descarga de Documento Fiscal</Text>
             </View>
           )}
 

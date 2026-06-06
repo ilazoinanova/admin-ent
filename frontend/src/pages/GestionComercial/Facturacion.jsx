@@ -1,32 +1,39 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Eye, CheckCircle, Trash2, FileText, Download, Pencil, Link2 } from "lucide-react";
+import { Plus, Eye, CheckCircle, Trash2, FileText, Download, FileDown, Pencil, Mail, UploadCloud, Send } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { pdf } from "@react-pdf/renderer";
 import QRCode from "qrcode";
-import { getInvoices, getInvoice, updateInvoice, deleteInvoice } from "../../api/invoices/invoice.service";
+import { getInvoices, getInvoice, updateInvoice, deleteInvoice, getTenantsWithInvoices, getInvoiceBillingPeriods } from "../../api/invoices/invoice.service";
+import { periodLabel } from "../../utils/billingPeriod";
 
 import { fmtDate } from "../../utils/date";
 import InvoiceCreateModal from "../../components/ui/Facturacion/InvoiceCreateModal";
 import InvoiceDetailModal from "../../components/ui/Facturacion/InvoiceDetailModal";
 import InvoicePdfDocument from "../../components/ui/Facturacion/InvoicePdfDocument";
+import InvoiceEmailModal from "../../components/ui/Facturacion/InvoiceEmailModal";
+import InvoiceSendClientModal from "../../components/ui/Facturacion/InvoiceSendClientModal";
+import InvoiceUploadPdfModal from "../../components/ui/Facturacion/InvoiceUploadPdfModal";
 import ConfirmModal from "../../components/ui/ConfirmModal";
-import InvoiceQrModal from "../../components/ui/Facturacion/InvoiceQrModal";
 
 const STATUS_COLORS = {
-  draft:     "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-  sent:      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  paid:      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  overdue:   "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  cancelled: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
+  draft:      "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+  accounting: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  ready:      "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
+  sent:       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  paid:       "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  overdue:    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  cancelled:  "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
 };
 
 const STATUS_KEYS = {
-  draft:     "statusDraft",
-  sent:      "statusSent",
-  paid:      "statusPaid",
-  overdue:   "statusOverdue",
-  cancelled: "statusCancelled",
+  draft:      "statusDraft",
+  accounting: "statusAccounting",
+  ready:      "statusReady",
+  sent:       "statusSent",
+  paid:       "statusPaid",
+  overdue:    "statusOverdue",
+  cancelled:  "statusCancelled",
 };
 
 const STAT_CARDS = [
@@ -41,8 +48,6 @@ export default function Facturacion() {
   const [invoices, setInvoices]         = useState([]);
   const [stats, setStats]               = useState({});
   const [meta, setMeta]                 = useState({});
-  const [search, setSearch]                       = useState("");
-  const [debouncedSearch, setDebouncedSearch]     = useState("");
   const [statusFilter, setStatusFilter]           = useState("");
   const [debouncedStatus, setDebouncedStatus]     = useState("");
   const [page, setPage]                           = useState(1);
@@ -53,13 +58,25 @@ export default function Facturacion() {
   const [detailInvoice, setDetailInvoice]   = useState(null);
   const [confirmDelete, setConfirmDelete]   = useState(null);
   const [confirmPaid, setConfirmPaid]       = useState(null);
+  const [confirmSent, setConfirmSent]       = useState(null);
   const [downloadingId, setDownloadingId]   = useState(null);
-  const [qrInvoice, setQrInvoice]           = useState(null);
+  const [emailInvoice, setEmailInvoice]     = useState(null);
+  const [uploadInvoice, setUploadInvoice]   = useState(null);
+  const [tenantFilter, setTenantFilter]     = useState("");
+  const [periodFilter, setPeriodFilter]     = useState("");
+  const [tenantOptions, setTenantOptions]   = useState([]);
+  const [periodOptions, setPeriodOptions]   = useState([]);
+  const [loadingPeriods, setLoadingPeriods] = useState(false);
 
-  const loadInvoices = async (s = debouncedSearch, st = debouncedStatus, p = page) => {
+  const loadInvoices = async (st = debouncedStatus, p = page, tenant = tenantFilter, period = periodFilter) => {
     setLoading(true);
     try {
-      const res = await getInvoices({ search: s, page: p, status: st || undefined });
+      const res = await getInvoices({
+        page:           p,
+        status:         st      || undefined,
+        tenant_id:      tenant  || undefined,
+        billing_period: period  || undefined,
+      });
       setInvoices(res.data.data ?? []);
       setStats(res.data.stats ?? {});
       setMeta(res.data);
@@ -70,18 +87,48 @@ export default function Facturacion() {
     }
   };
 
+  // Al montar: cargar clientes y todos los períodos; pre-seleccionar el último período
+  useEffect(() => {
+    getTenantsWithInvoices()
+      .then((res) => setTenantOptions(res.data.data ?? []))
+      .catch(() => {});
+
+    setLoadingPeriods(true);
+    getInvoiceBillingPeriods()
+      .then((res) => {
+        const periods = res.data.data ?? [];
+        setPeriodOptions(periods);
+        if (periods.length > 0) setPeriodFilter(periods[0]); // último período
+      })
+      .catch(() => {})
+      .finally(() => setLoadingPeriods(false));
+  }, []);
+
+  // Cuando cambia el cliente: recargar períodos para ese cliente (o todos si se limpia)
+  useEffect(() => {
+    setPeriodFilter("");
+    setPeriodOptions([]);
+    setLoadingPeriods(true);
+    getInvoiceBillingPeriods(tenantFilter || null)
+      .then((res) => {
+        const periods = res.data.data ?? [];
+        setPeriodOptions(periods);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingPeriods(false));
+  }, [tenantFilter]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setPage(1);
-      setDebouncedSearch(search);
       setDebouncedStatus(statusFilter);
     }, 400);
     return () => clearTimeout(timer);
-  }, [search, statusFilter]);
+  }, [statusFilter]);
 
   useEffect(() => {
-    loadInvoices(debouncedSearch, debouncedStatus, page);
-  }, [debouncedSearch, debouncedStatus, page]);
+    loadInvoices(debouncedStatus, page, tenantFilter, periodFilter);
+  }, [debouncedStatus, page, tenantFilter, periodFilter]);
 
   const handleMarkPaid = async () => {
     try {
@@ -157,21 +204,40 @@ export default function Facturacion() {
   return (
     <div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{t("billing")}</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{t("facturacionSubtitle")}</p>
-        </div>
+      {/* Header + Filtros en una sola fila */}
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder={t("searchInvoice")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+          <div className="mr-2">
+            <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{t("billing")}</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t("facturacionSubtitle")}</p>
+          </div>
+
+          <select
+            value={tenantFilter}
+            onChange={(e) => { setTenantFilter(e.target.value); setPage(1); }}
             disabled={loading}
-            className="border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 placeholder:text-gray-400 rounded-md px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
-          />
+            className="border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed min-w-[190px]"
+          >
+            <option value="">{t("allClients")}</option>
+            {tenantOptions.map((ten) => (
+              <option key={ten.id} value={ten.id}>{ten.name}</option>
+            ))}
+          </select>
+
+          <select
+            value={periodFilter}
+            onChange={(e) => { setPeriodFilter(e.target.value); setPage(1); }}
+            disabled={loading || loadingPeriods}
+            className="border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed min-w-[155px]"
+          >
+            <option value="">
+              {loadingPeriods ? t("loading") : t("allPeriods")}
+            </option>
+            {periodOptions.map((p) => (
+              <option key={p} value={p}>{periodLabel(p)}</option>
+            ))}
+          </select>
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -183,14 +249,15 @@ export default function Facturacion() {
               <option key={v} value={v}>{t(k)}</option>
             ))}
           </select>
-          <button
-            onClick={() => setCreateOpen(true)}
-            disabled={loading}
-            className="bg-[#0b1b3b] text-white text-sm px-3 py-1.5 rounded-md flex items-center gap-1.5 hover:bg-[#162d5e] disabled:opacity-60 disabled:cursor-not-allowed transition"
-          >
-            <Plus size={15} /> {t("newInvoice")}
-          </button>
         </div>
+
+        <button
+          onClick={() => setCreateOpen(true)}
+          disabled={loading}
+          className="bg-[#0b1b3b] text-white text-sm px-3 py-1.5 rounded-md flex items-center gap-1.5 hover:bg-[#162d5e] disabled:opacity-60 disabled:cursor-not-allowed transition"
+        >
+          <Plus size={15} /> {t("newInvoice")}
+        </button>
       </div>
 
       {/* Tarjetas resumen */}
@@ -210,9 +277,10 @@ export default function Facturacion() {
 
       {/* Tabla */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_60px_1fr_130px] gap-3 px-4 py-3 bg-[#0b1b3b] text-white text-xs font-semibold">
+        <div className="grid grid-cols-[2fr_2fr_110px_90px_90px_110px_60px_180px_130px] gap-3 px-4 py-3 bg-[#0b1b3b] text-white text-xs font-semibold">
           <span>{t("invoiceNumber")}</span>
           <span>{t("client")}</span>
+          <span>{t("period")}</span>
           <span>{t("issueDate")}</span>
           <span>{t("dueDate")}</span>
           <span>{t("total")}</span>
@@ -239,14 +307,15 @@ export default function Facturacion() {
           invoices.map((inv) => {
             const colorClass = STATUS_COLORS[inv.status] ?? STATUS_COLORS.draft;
             const labelKey   = STATUS_KEYS[inv.status]  ?? "statusDraft";
-            const canMarkPaid = !["paid", "cancelled"].includes(inv.status);
+            const canMarkPaid = ["sent", "overdue"].includes(inv.status);
             return (
               <div
                 key={inv.id}
-                className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_60px_1fr_130px] gap-3 px-4 py-3 border-t dark:border-gray-700 items-center text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
+                className="grid grid-cols-[2fr_2fr_110px_90px_90px_110px_60px_180px_130px] gap-3 px-4 py-3 border-t dark:border-gray-700 items-center text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
               >
                 <span className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300">{inv.invoice_number}</span>
                 <span className="truncate text-gray-800 dark:text-gray-200">{inv.tenant?.name ?? "—"}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">{inv.billing_period ? periodLabel(inv.billing_period) : "—"}</span>
                 <span className="text-gray-600 dark:text-gray-400">{fmtDate(inv.issue_date)}</span>
                 <span className="text-gray-600 dark:text-gray-400">{fmtDate(inv.due_date) ?? "—"}</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200">${fmt(inv.total)}</span>
@@ -263,11 +332,11 @@ export default function Facturacion() {
                   {inv.status === "draft" && (
                     <>
                       <button
-                        onClick={() => setQrInvoice(inv)}
-                        title={t("qrModal.openButton")}
-                        className="text-gray-400 hover:text-purple-600 transition"
+                        onClick={() => setEmailInvoice(inv)}
+                        title={t("emailModal.openButton")}
+                        className="text-gray-400 hover:text-amber-600 transition"
                       >
-                        <Link2 size={15} />
+                        <Mail size={15} />
                       </button>
                       <button
                         onClick={() => handleOpenEdit(inv)}
@@ -281,6 +350,35 @@ export default function Facturacion() {
                         }
                       </button>
                     </>
+                  )}
+                  {inv.status === "accounting" && (
+                    <button
+                      onClick={() => setUploadInvoice(inv)}
+                      title={t("uploadModal.openButton")}
+                      className="text-gray-400 hover:text-blue-600 transition"
+                    >
+                      <UploadCloud size={15} />
+                    </button>
+                  )}
+                  {inv.status === "ready" && (
+                    <button
+                      onClick={() => setConfirmSent(inv)}
+                      title={t("markSent")}
+                      className="text-gray-400 hover:text-teal-600 transition"
+                    >
+                      <Send size={15} />
+                    </button>
+                  )}
+                  {inv.fiscal_pdf_url && (
+                    <a
+                      href={`${import.meta.env.VITE_API_URL}/fiscal/${inv.id}/download`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={t("downloadFiscal")}
+                      className="text-gray-400 hover:text-amber-600 transition"
+                    >
+                      <FileDown size={15} />
+                    </a>
                   )}
                   <button
                     onClick={() => handleDownloadPdf(inv)}
@@ -360,6 +458,18 @@ export default function Facturacion() {
         />
       )}
 
+      {confirmSent && (
+        <InvoiceSendClientModal
+          invoice={confirmSent}
+          onClose={() => setConfirmSent(null)}
+          onSent={() => {
+            setConfirmSent(null);
+            loadInvoices();
+            toast.success(t("invoiceMarkedSent"));
+          }}
+        />
+      )}
+
       <ConfirmModal
         open={!!confirmPaid}
         onClose={() => setConfirmPaid(null)}
@@ -380,10 +490,19 @@ export default function Facturacion() {
         type="danger"
       />
 
-      {qrInvoice && (
-        <InvoiceQrModal
-          invoice={qrInvoice}
-          onClose={() => setQrInvoice(null)}
+      {emailInvoice && (
+        <InvoiceEmailModal
+          invoice={emailInvoice}
+          onClose={() => setEmailInvoice(null)}
+          onSent={() => { setEmailInvoice(null); loadInvoices(); toast.success(t("emailModal.sentSuccess")); }}
+        />
+      )}
+
+      {uploadInvoice && (
+        <InvoiceUploadPdfModal
+          invoice={uploadInvoice}
+          onClose={() => setUploadInvoice(null)}
+          onUploaded={() => { setUploadInvoice(null); loadInvoices(); toast.success(t("uploadModal.uploadSuccess")); }}
         />
       )}
 

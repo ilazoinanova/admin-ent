@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\Tenant;
 use App\Models\TenantService;
 use App\Models\TenantDepartment;
 use App\Models\TenantBillingConfig;
 use Illuminate\Http\Request;
+use App\Mail\InvoiceClientMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Throwable;
 
@@ -43,9 +47,21 @@ class InvoiceController extends Controller
                 $query->where('tenant_id', $request->tenant_id);
             }
 
+            if ($request->billing_period) {
+                $query->where('billing_period', $request->billing_period);
+            }
+
             $invoices = $query->orderBy('id', 'desc')->paginate(20);
 
-            $statsRaw = Invoice::where('deleted', 0)
+            $statsQuery = Invoice::where('deleted', 0);
+            if ($request->tenant_id) {
+                $statsQuery->where('tenant_id', $request->tenant_id);
+            }
+            if ($request->billing_period) {
+                $statsQuery->where('billing_period', $request->billing_period);
+            }
+
+            $statsRaw = $statsQuery
                 ->selectRaw("currency,
                     SUM(total) as total_invoiced,
                     SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END) as total_paid,
@@ -228,12 +244,22 @@ class InvoiceController extends Controller
             } else {
                 // Actualización simple de estado/campos
                 $request->validate([
-                    'status'   => 'sometimes|in:draft,sent,paid,overdue,cancelled',
-                    'due_date' => 'sometimes|nullable|date',
-                    'notes'    => 'sometimes|nullable|string',
-                    'qr_url'   => 'sometimes|nullable|url|max:2048',
+                    'status'                   => 'sometimes|in:draft,accounting,ready,sent,paid,overdue,cancelled',
+                    'due_date'                 => 'sometimes|nullable|date',
+                    'notes'                    => 'sometimes|nullable|string',
+                    'qr_url'                   => 'sometimes|nullable|url|max:2048',
+                    'accounting_email_to'      => 'sometimes|nullable|email|max:255',
+                    'accounting_email_subject' => 'sometimes|nullable|string|max:500',
                 ]);
-                $invoice->update($request->only(['status', 'due_date', 'notes', 'qr_url']));
+
+                $fields = $request->only(['status', 'due_date', 'notes', 'qr_url',
+                                          'accounting_email_to', 'accounting_email_subject']);
+
+                if ($request->input('status') === 'accounting') {
+                    $fields['accounting_sent_at'] = now();
+                }
+
+                $invoice->update($fields);
             }
 
             DB::commit();
@@ -345,6 +371,123 @@ class InvoiceController extends Controller
             Log::error('InvoiceController@tenantServices: ' . $e->getMessage());
 
             return response()->json(['message' => 'Error al obtener servicios del cliente'], 500);
+        }
+    }
+
+    public function uploadFiscalPdf(Request $request, $id)
+    {
+        $request->validate([
+            'fiscal_pdf' => 'required|file|mimes:pdf|max:20480',
+        ]);
+
+        try {
+            $invoice = Invoice::where('deleted', 0)->findOrFail($id);
+
+            $path         = $request->file('fiscal_pdf')->store('invoices/fiscal', 'public');
+            $downloadUrl  = url("/fiscal/{$invoice->id}/download");
+
+            $invoice->update([
+                'fiscal_pdf_url' => $path,
+                'qr_url'         => $downloadUrl,
+                'status'         => 'ready',
+            ]);
+
+            return response()->json($invoice->load(['tenant', 'items.service']));
+        } catch (ModelNotFoundException) {
+            return response()->json(['message' => 'Factura no encontrada'], 404);
+        } catch (Throwable $e) {
+            Log::error('InvoiceController@uploadFiscalPdf: ' . $e->getMessage());
+
+            return response()->json(['message' => 'Error al subir el archivo'], 500);
+        }
+    }
+
+    public function tenantsWithInvoices()
+    {
+        try {
+            $tenantIds = Invoice::where('deleted', 0)->distinct()->pluck('tenant_id');
+
+            $tenants = Tenant::whereIn('id', $tenantIds)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+
+            return response()->json(['data' => $tenants]);
+        } catch (Throwable $e) {
+            Log::error('InvoiceController@tenantsWithInvoices: ' . $e->getMessage());
+
+            return response()->json(['message' => 'Error al obtener clientes'], 500);
+        }
+    }
+
+    public function billingPeriods(Request $request)
+    {
+        $request->validate(['tenant_id' => 'nullable|integer|exists:tenants,id']);
+
+        try {
+            $query = Invoice::where('deleted', 0)->whereNotNull('billing_period');
+
+            if ($request->tenant_id) {
+                $query->where('tenant_id', $request->tenant_id);
+            }
+
+            $periods = $query->orderBy('billing_period', 'desc')->distinct()->pluck('billing_period');
+
+            return response()->json(['data' => $periods]);
+        } catch (Throwable $e) {
+            Log::error('InvoiceController@billingPeriods: ' . $e->getMessage());
+
+            return response()->json(['message' => 'Error al obtener períodos'], 500);
+        }
+    }
+
+    public function sendToClient(Request $request, $id)
+    {
+        $request->validate([
+            'pdf'           => 'required|file|mimes:pdf|max:20480',
+            'email_to'      => 'required|email|max:255',
+            'email_cc'      => 'nullable|email|max:255',
+            'email_subject' => 'required|string|max:500',
+            'email_body'    => 'required|string',
+            'email_footer'  => 'nullable|string',
+        ]);
+
+        try {
+            $invoice = Invoice::with(['tenant', 'items.service'])
+                ->where('deleted', 0)
+                ->findOrFail($id);
+
+            $pdfFile  = $request->file('pdf');
+            $fileName = $invoice->invoice_number . '.pdf';
+
+            $mailable = new InvoiceClientMail(
+                invoice:      $invoice,
+                emailSubject: $request->email_subject,
+                emailBody:    $request->email_body,
+                emailFooter:  $request->email_footer ?? '',
+                pdfPath:      $pdfFile->getRealPath(),
+                pdfFileName:  $fileName,
+            );
+
+            $mailer = Mail::to($request->email_to);
+            if ($request->filled('email_cc')) {
+                $mailer->cc($request->email_cc);
+            }
+            $mailer->send($mailable);
+
+            $invoice->update([
+                'status'          => 'sent',
+                'client_email_to' => $request->email_to,
+                'client_email_cc' => $request->email_cc ?: null,
+                'client_sent_at'  => now(),
+            ]);
+
+            return response()->json($invoice->load(['tenant', 'items.service']));
+        } catch (ModelNotFoundException) {
+            return response()->json(['message' => 'Factura no encontrada'], 404);
+        } catch (Throwable $e) {
+            Log::error('InvoiceController@sendToClient: ' . $e->getMessage());
+
+            return response()->json(['message' => 'Error al enviar el correo al cliente'], 500);
         }
     }
 

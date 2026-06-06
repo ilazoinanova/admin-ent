@@ -24,17 +24,26 @@ class Invoice extends Model
         'currency',
         'notes',
         'qr_url',
+        'accounting_email_to',
+        'accounting_email_subject',
+        'accounting_sent_at',
+        'fiscal_pdf_url',
+        'client_email_to',
+        'client_email_cc',
+        'client_sent_at',
         'deleted',
     ];
 
     protected $casts = [
-        'subtotal'  => 'float',
-        'tax_rate'  => 'float',
-        'tax'       => 'float',
-        'total'     => 'float',
-        'deleted'   => 'integer',
-        'issue_date' => 'date:Y-m-d',
-        'due_date'   => 'date:Y-m-d',
+        'subtotal'           => 'float',
+        'tax_rate'           => 'float',
+        'tax'                => 'float',
+        'total'              => 'float',
+        'deleted'            => 'integer',
+        'issue_date'         => 'date:Y-m-d',
+        'due_date'           => 'date:Y-m-d',
+        'accounting_sent_at' => 'datetime',
+        'client_sent_at'     => 'datetime',
     ];
 
     public function tenant()
