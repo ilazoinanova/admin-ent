@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ExternalBillingApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,7 @@ use Throwable;
 
 class AssignmentController extends Controller
 {
+    public function __construct(private ExternalBillingApiService $externalApi) {}
     // tenant_service_assignments.billing_cycle usa valores en español (ENUM existente)
     // tenant_billing_configs.billing_cycle usa valores en inglés
     private function mapCycle(?string $cycle): ?string
@@ -32,7 +34,14 @@ class AssignmentController extends Controller
     public function index()
     {
         try {
-            $tenants     = Tenant::where('status', 1)->where('deleted', 0)->get();
+            try {
+                $external = $this->externalApi->getTenants('active');
+                $tenants  = collect($external['items'] ?? []);
+            } catch (Throwable $e) {
+                Log::warning('AssignmentController: fallback a tenants locales - ' . $e->getMessage());
+                $tenants = Tenant::where('status', 1)->where('deleted', 0)->get();
+            }
+
             $services    = Service::where('status', 1)->where('deleted', 0)->get();
             $assignments = TenantService::with('tiers')->get();
             $departments = TenantDepartment::where('deleted', 0)

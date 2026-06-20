@@ -31,6 +31,7 @@ const ReadOnlyBadge = ({ label, value }) => (
 const AssignmentModal = ({ open, onClose, data, reload }) => {
   const { t } = useTranslation();
   const isLicense     = data?.service_name === "Licencias";
+  const isIntegration = data?.service_name === "Integraciones";
   const isDevelopment = data?.service_name === "Desarrollos";
   const billingConfig = data?.billing_config ?? null;
 
@@ -56,7 +57,7 @@ const AssignmentModal = ({ open, onClose, data, reload }) => {
     if (data?.data) {
       setForm({
         price:             data.data.price             || "",
-        unit:              data.data.unit              || "user",
+        unit:              data.data.unit              || (data?.service_name === "Integraciones" ? "integration" : "user"),
         license_type:      data.data.license_type      || "",
         license_modalidad: data.data.license_modalidad || "",
         development_type:  data.data.development_type  || "",
@@ -108,7 +109,7 @@ const AssignmentModal = ({ open, onClose, data, reload }) => {
         service_id:        data.service_id,
         department_id:     data.department_id ?? null,
         price:             nullify(form.price),
-        unit:              nullify(form.unit),
+        unit:              isIntegration ? "integration" : nullify(form.unit),
         license_type:      nullify(form.license_type),
         license_modalidad: nullify(form.license_modalidad),
         development_type:  nullify(form.development_type),
@@ -203,62 +204,88 @@ const AssignmentModal = ({ open, onClose, data, reload }) => {
             </div>
           )}
 
-          {/* Config general — Licencias */}
-          <div className={sectionClass}>
-            <div className="grid grid-cols-2 gap-4">
-              {isLicense && (
-                <>
-                  <div>
-                    <label className={labelClass}>{t("licenseType")}</label>
-                    <select
-                      value={form.license_type}
-                      onChange={(e) => setForm({ ...form, license_type: e.target.value })}
-                      className={inputClass}
-                      disabled={loading}
-                    >
-                      <option value="">{t("select")}</option>
-                      {LICENSE_TYPES.map((lt) => (
-                        <option key={lt.value} value={lt.value}>{lt.label}</option>
-                      ))}
-                    </select>
-                  </div>
+          {/* Config — Licencias */}
+          {isLicense && (
+            <div className={sectionClass}>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>{t("licenseType")}</label>
+                  <select
+                    value={form.license_type}
+                    onChange={(e) => setForm({ ...form, license_type: e.target.value })}
+                    className={inputClass}
+                    disabled={loading}
+                  >
+                    <option value="">{t("select")}</option>
+                    {LICENSE_TYPES.map((lt) => (
+                      <option key={lt.value} value={lt.value}>{lt.label}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div>
-                    <label className={labelClass}>{t("modality")}</label>
-                    <select
-                      value={form.license_modalidad}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setForm({ ...form, license_modalidad: value, price: value === "fixed" ? form.price : "" });
-                        if (value === "fixed") setTiers([]);
-                      }}
-                      className={inputClass}
-                      disabled={loading}
-                    >
-                      <option value="">{t("select")}</option>
-                      <option value="fixed">{t("fixedOption")}</option>
-                      <option value="tiered_fixed">{t("tieredFixed")}</option>
-                      <option value="tiered_escalating">{t("tieredEscalating")}</option>
-                    </select>
-                  </div>
-                </>
+                <div>
+                  <label className={labelClass}>{t("modality")}</label>
+                  <select
+                    value={form.license_modalidad}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setForm({ ...form, license_modalidad: value, price: value === "fixed" ? form.price : "" });
+                      if (value === "fixed") setTiers([]);
+                    }}
+                    className={inputClass}
+                    disabled={loading}
+                  >
+                    <option value="">{t("select")}</option>
+                    <option value="fixed">{t("fixedOption")}</option>
+                    <option value="tiered_fixed">{t("tieredFixed")}</option>
+                    <option value="tiered_escalating">{t("tieredEscalating")}</option>
+                  </select>
+                </div>
+              </div>
+
+              {form.license_modalidad === "fixed" && (
+                <div>
+                  <label className={labelClass}>{t("pricePerUser")}</label>
+                  <input
+                    type="number"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    className={inputClass}
+                    disabled={loading}
+                  />
+                </div>
               )}
             </div>
+          )}
 
-            {isLicense && form.license_modalidad === "fixed" && (
+          {/* Config — Integraciones (precio por documento, conteo desde API externa) */}
+          {isIntegration && (
+            <div className={sectionClass}>
+              <div className="flex items-start gap-2 mb-1">
+                <Info size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                  {t("integrationPriceHint") || "El conteo de documentos se obtiene automáticamente desde la API de EasyNextTime al generar la factura."}
+                </p>
+              </div>
               <div>
-                <label className={labelClass}>{t("pricePerUser")}</label>
+                <label className={labelClass}>{t("pricePerDocument") || "Precio por documento"} {billingConfig ? `(${billingConfig.currency})` : ""}</label>
                 <input
                   type="number"
                   value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  onChange={(e) => setForm({ ...form, price: e.target.value, unit: "integration" })}
                   className={inputClass}
+                  min="0"
+                  step="0.01"
                   disabled={loading}
+                  placeholder="0.00"
                 />
               </div>
-            )}
+            </div>
+          )}
 
-            {!isLicense && (
+          {/* Config — Otros servicios (Consultorias, etc.) */}
+          {!isLicense && !isIntegration && (
+            <div className={sectionClass}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>{t("price")}</label>
@@ -284,8 +311,8 @@ const AssignmentModal = ({ open, onClose, data, reload }) => {
                   </select>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Desarrollos */}
           {isDevelopment && (

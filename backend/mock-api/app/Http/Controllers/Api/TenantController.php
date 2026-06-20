@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ExternalBillingApiService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -12,8 +14,37 @@ use Throwable;
 
 class TenantController extends Controller
 {
+    public function __construct(private ExternalBillingApiService $externalApi) {}
+
     public function index(Request $request)
     {
+        try {
+            // Sincronizar desde la API externa (cacheado 5 minutos para no sobrecargar)
+            if (! Cache::has('external_tenants_synced')) {
+                $external = $this->externalApi->getTenants('all', false);
+
+                if (! empty($external['items'])) {
+                    $now  = now()->toDateTimeString();
+                    $rows = collect($external['items'])->map(fn ($t) => [
+                        'id'         => $t['id'],
+                        'name'       => $t['name'],
+                        'domain'     => $t['domain'] ?? null,
+                        'status'     => $t['status'] ?? 1,
+                        'deleted'    => $t['deleted'] ?? 0,
+                        'code'       => 'TEN-' . $t['id'],
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ])->toArray();
+
+                    Tenant::upsert($rows, ['id'], ['name', 'domain', 'status', 'deleted', 'updated_at']);
+                }
+
+                Cache::put('external_tenants_synced', true, 300);
+            }
+        } catch (Throwable $e) {
+            Log::warning('TenantController@index sync: ' . $e->getMessage());
+        }
+
         try {
             $query = Tenant::where('deleted', 0)->withCount([
                 'departments as departments_count' => fn ($q) => $q->where('status', 1),
@@ -52,25 +83,7 @@ class TenantController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name'  => 'required|string|max:255',
-            'code'  => 'required|string|max:100|unique:tenants,code',
-            'email' => 'nullable|email',
-        ]);
-
-        DB::beginTransaction();
-        try {
-            $tenant = Tenant::create($validated + $request->all());
-
-            DB::commit();
-
-            return response()->json($tenant, 201);
-        } catch (Throwable $e) {
-            DB::rollBack();
-            Log::error('TenantController@store: ' . $e->getMessage());
-
-            return response()->json(['message' => 'Error al crear la compañía'], 500);
-        }
+        return response()->json(['message' => 'Las empresas se gestionan desde EasyNextTime'], 405);
     }
 
     public function show($id)
@@ -118,23 +131,6 @@ class TenantController extends Controller
 
     public function destroy($id)
     {
-        DB::beginTransaction();
-        try {
-            $tenant = Tenant::findOrFail($id);
-            $tenant->update(['deleted' => 1]);
-
-            DB::commit();
-
-            return response()->json(['success' => true]);
-        } catch (ModelNotFoundException) {
-            DB::rollBack();
-
-            return response()->json(['message' => 'Compañía no encontrada'], 404);
-        } catch (Throwable $e) {
-            DB::rollBack();
-            Log::error('TenantController@destroy: ' . $e->getMessage());
-
-            return response()->json(['message' => 'Error al eliminar la compañía'], 500);
-        }
+        return response()->json(['message' => 'Las empresas se gestionan desde EasyNextTime'], 405);
     }
 }

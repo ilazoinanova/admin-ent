@@ -69,6 +69,38 @@ class ExternalBillingApiService
     }
 
     /**
+     * Obtiene la lista de empresas (tenants) desde la API externa.
+     *
+     * Endpoint: POST {baseUrl}/master/tenants
+     * Body JSON: { "status": "active|inactive|all", "include_deleted": bool }
+     * Respuesta: { "count": N, "truncated": bool, "items": [{id, name, domain, status, deleted}] }
+     */
+    public function getTenants(string $status = 'active', bool $includeDeleted = false): array
+    {
+        return $this->request('/master/tenants', [
+            'status'          => $status,
+            'include_deleted' => $includeDeleted,
+        ]);
+    }
+
+    /**
+     * Obtiene catálogos maestros de un tenant (departamentos, zonas, proyectos, licencias).
+     *
+     * Endpoint: POST {baseUrl}/master/lists
+     * Body JSON: { "tenant_id": N, "models": [...], "status": "active|all", "include_deleted": bool }
+     * Respuesta: { "tenant_id": N, "models": { "departments": { "count": N, "items": [...] } } }
+     */
+    public function getMasterLists(int $tenantId, array $models = ['departments'], string $status = 'active', bool $includeDeleted = false): array
+    {
+        return $this->request('/master/lists', [
+            'tenant_id'       => $tenantId,
+            'models'          => $models,
+            'status'          => $status,
+            'include_deleted' => $includeDeleted,
+        ]);
+    }
+
+    /**
      * Realiza un POST autenticado contra un endpoint de negocio de la API externa.
      * Si el token está vencido (401), lo refresca y reintenta una sola vez.
      *

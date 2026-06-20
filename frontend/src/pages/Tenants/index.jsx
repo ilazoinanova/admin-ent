@@ -1,15 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  getTenants,
-  updateTenant,
-  createTenant,
-} from "../../api/tenants/tenant.service";
+import { getTenants, updateTenant } from "../../api/tenants/tenant.service";
 import DataTable from "../../components/ui/DataTable";
-import { Pencil, Power } from "lucide-react";
+import { Eye } from "lucide-react";
 import TenantDetailModal from "../../components/ui/Tenants/TenantDetailModal";
 import toast from "react-hot-toast";
-import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const SKELETON_COLS = 9;
 
@@ -21,7 +16,6 @@ const TenantsPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({});
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
 
@@ -66,43 +60,7 @@ const TenantsPage = () => {
 
   const grid = "grid-cols-[2fr_1fr_1.5fr_1.8fr_1fr_1fr_2fr_0.8fr_0.8fr]";
 
-  const handleCreate = () => { setSelectedTenant(null); setDetailOpen(true); };
-  const handleEdit   = (tenant) => { setSelectedTenant(tenant); setDetailOpen(true); };
-
-  const handleDetailSubmit = async (data) => {
-    try {
-      if (selectedTenant?.id) {
-        await updateTenant(selectedTenant.id, data);
-        toast.success(t("companyUpdated"));
-        setDetailOpen(false);
-      } else {
-        const res = await createTenant(data);
-        toast.success(t("companyCreated"));
-        // Mantiene el modal abierto con el tenant recién creado para configurar deps/facturación
-        setSelectedTenant(res.data);
-      }
-      loadTenants();
-    } catch (error) {
-      toast.error(t("companySaveError"));
-      console.error(error);
-    }
-  };
-
-  const handleToggleClick = (tenant) => { setSelectedTenant(tenant); setConfirmOpen(true); };
-
-  const handleConfirmToggle = async () => {
-    try {
-      await updateTenant(selectedTenant.id, {
-        ...selectedTenant,
-        status: selectedTenant.status === 1 ? 0 : 1,
-      });
-      toast.success(selectedTenant.status === 1 ? t("companyDeactivated") : t("companyActivated"));
-      setConfirmOpen(false);
-      loadTenants();
-    } catch {
-      toast.error(t("changeStatusError"));
-    }
-  };
+  const handleEdit = (tenant) => { setSelectedTenant(tenant); setDetailOpen(true); };
 
   return (
     <div>
@@ -120,13 +78,6 @@ const TenantsPage = () => {
             onChange={(e) => setSearch(e.target.value)}
             disabled={loading}
           />
-          <button
-            onClick={handleCreate}
-            disabled={loading}
-            className="bg-[#0b1b3b] text-white px-3 py-1.5 rounded-md text-sm hover:bg-[#162d5e] disabled:opacity-60 disabled:cursor-not-allowed transition"
-          >
-            {t("newButton")}
-          </button>
         </div>
       </div>
 
@@ -171,14 +122,7 @@ const TenantsPage = () => {
                   disabled={loading}
                   className="text-blue-500 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  onClick={() => handleToggleClick(ten)}
-                  disabled={loading}
-                  className={`disabled:opacity-50 disabled:cursor-not-allowed transition ${ten.status === 1 ? "text-red-500 hover:text-red-700" : "text-green-500 hover:text-green-700"}`}
-                >
-                  <Power size={16} />
+                  <Eye size={16} />
                 </button>
               </div>
             </div>
@@ -209,22 +153,7 @@ const TenantsPage = () => {
       <TenantDetailModal
         open={detailOpen}
         onClose={() => { setDetailOpen(false); setSelectedTenant(null); }}
-        onSubmit={handleDetailSubmit}
         tenant={selectedTenant}
-      />
-
-      <ConfirmModal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={handleConfirmToggle}
-        title={selectedTenant?.status === 1 ? t("deactivateCompany") : t("activateCompany")}
-        description={
-          selectedTenant
-            ? t(selectedTenant.status === 1 ? "deactivateCompanyConfirm" : "activateCompanyConfirm", { name: selectedTenant.name })
-            : ""
-        }
-        confirmText={selectedTenant?.status === 1 ? t("deactivate") : t("activate")}
-        type={selectedTenant?.status === 1 ? "danger" : "success"}
       />
     </div>
   );

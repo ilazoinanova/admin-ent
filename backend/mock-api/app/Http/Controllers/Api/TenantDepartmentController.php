@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ExternalBillingApiService;
 use App\Models\Tenant;
 use App\Models\TenantDepartment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -13,11 +15,41 @@ use Throwable;
 
 class TenantDepartmentController extends Controller
 {
+    public function __construct(private ExternalBillingApiService $externalApi) {}
+
     public function index(int $tenantId)
     {
         try {
-            Tenant::where('id', $tenantId)->where('deleted', 0)->firstOrFail();
+            // Sincronizar departamentos desde la API externa (cacheado 5 minutos por tenant)
+            $cacheKey = "external_depts_synced_{$tenantId}";
+            if (! Cache::has($cacheKey)) {
+                $external = $this->externalApi->getMasterLists($tenantId, ['departments'], 'all', false);
+                $items    = $external['models']['departments']['items'] ?? [];
 
+                if (! empty($items)) {
+                    $now  = now()->toDateTimeString();
+                    $rows = collect($items)->map(fn ($d) => [
+                        'id'          => $d['id'],
+                        'tenant_id'   => $tenantId,
+                        'name'        => $d['name'],
+                        'description' => $d['description'] ?? null,
+                        'status'      => $d['active'] ?? 1,
+                        'deleted'     => $d['deleted'] ?? 0,
+                        'code'        => 'DEP-' . $d['id'],
+                        'created_at'  => $now,
+                        'updated_at'  => $now,
+                    ])->toArray();
+
+                    TenantDepartment::upsert($rows, ['id'], ['name', 'description', 'status', 'deleted', 'updated_at']);
+                }
+
+                Cache::put($cacheKey, true, 300);
+            }
+        } catch (Throwable $e) {
+            Log::warning("TenantDepartmentController@index sync (tenant {$tenantId}): " . $e->getMessage());
+        }
+
+        try {
             $departments = TenantDepartment::where('tenant_id', $tenantId)
                 ->where('deleted', 0)
                 ->orderBy('name')
@@ -32,62 +64,7 @@ class TenantDepartmentController extends Controller
 
     public function store(Request $request, int $tenantId)
     {
-        Tenant::where('id', $tenantId)->where('deleted', 0)->firstOrFail();
-
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('tenant_departments')->where(
-                    fn ($q) => $q->where('tenant_id', $tenantId)->where('deleted', 0)
-                ),
-            ],
-            'description'            => 'nullable|string|max:500',
-            'use_department_billing' => 'boolean',
-            'applies_tax'            => 'nullable|boolean',
-            'tax_name'               => 'nullable|string|max:50',
-            'tax_percent'            => 'nullable|numeric|min:0|max:100',
-            'billing_cycle'          => 'nullable|in:monthly,quarterly,biannual,annual',
-            'billing_day_from'       => 'nullable|integer|min:1|max:31',
-            'billing_day_to'         => 'nullable|integer|min:1|max:31',
-            'currency'               => 'nullable|string|size:3',
-            'payment_terms_days'     => 'nullable|integer|min:1|max:365',
-            'billing_email'          => 'nullable|email|max:255',
-            'billing_contact'        => 'nullable|string|max:255',
-            'billing_notes'          => 'nullable|string',
-        ]);
-
-        if ($request->boolean('use_department_billing')) {
-            $this->validateBillingRange($request);
-        }
-
-        DB::beginTransaction();
-        try {
-            $data = [
-                'tenant_id'              => $tenantId,
-                'name'                   => $request->name,
-                'code'                   => $request->code,
-                'description'            => $request->description,
-                'use_department_billing' => $request->boolean('use_department_billing'),
-                'status'                 => 1,
-                'deleted'                => 0,
-            ];
-
-            if ($request->boolean('use_department_billing')) {
-                $data = array_merge($data, $this->extractBillingFields($request));
-            }
-
-            $department = TenantDepartment::create($data);
-
-            DB::commit();
-            return response()->json($department, 201);
-        } catch (Throwable $e) {
-            DB::rollBack();
-            Log::error('TenantDepartmentController@store: ' . $e->getMessage());
-            return response()->json(['message' => 'Error al crear departamento'], 500);
-        }
+        return response()->json(['message' => 'Los departamentos se gestionan desde EasyNextTime'], 405);
     }
 
     public function update(Request $request, int $tenantId, int $id)
@@ -165,21 +142,7 @@ class TenantDepartmentController extends Controller
 
     public function destroy(int $tenantId, int $id)
     {
-        $department = TenantDepartment::where('id', $id)
-            ->where('tenant_id', $tenantId)
-            ->where('deleted', 0)
-            ->firstOrFail();
-
-        DB::beginTransaction();
-        try {
-            $department->update(['deleted' => 1]);
-            DB::commit();
-            return response()->json(['message' => 'Departamento eliminado']);
-        } catch (Throwable $e) {
-            DB::rollBack();
-            Log::error('TenantDepartmentController@destroy: ' . $e->getMessage());
-            return response()->json(['message' => 'Error al eliminar departamento'], 500);
-        }
+        return response()->json(['message' => 'Los departamentos se gestionan desde EasyNextTime'], 405);
     }
 
     private function validateBillingRange(Request $request): void

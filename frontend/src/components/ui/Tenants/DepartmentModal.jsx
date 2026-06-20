@@ -80,48 +80,33 @@ const DepartmentModal = ({ open, onClose, onSubmit, initialData }) => {
 
         <div className="bg-[#0b1b3b] text-white px-5 py-3">
           <h2 className="text-sm font-semibold">
-            {initialData ? t("editDepartment") : t("newDepartment")}
+            {initialData?.name || t("editDepartment")} — {t("billingConfig")}
           </h2>
         </div>
 
         <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[85vh]">
           <div className="p-5 space-y-3">
 
-            {/* ── Campos básicos ── */}
-            <div>
-              <label className={labelClass}>{t("name")} *</label>
-              <input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                className={fieldClass}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>{t("code")} *</label>
-              <input
-                name="code"
-                value={form.code}
-                onChange={handleChange}
-                className={fieldClass}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>{t("descriptionLabel")}</label>
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                rows={2}
-                className={`${fieldClass} resize-none`}
-                disabled={loading}
-              />
+            {/* ── Campos básicos (solo lectura) ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className={labelClass}>{t("name")}</label>
+                <div className="w-full border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-md text-sm min-h-[38px]">
+                  {form.name || <span className="text-gray-400">—</span>}
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>{t("code")}</label>
+                <div className="w-full border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-md text-sm min-h-[38px]">
+                  {form.code || <span className="text-gray-400">—</span>}
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>{t("descriptionLabel")}</label>
+                <div className="w-full border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-md text-sm min-h-[38px]">
+                  {form.description || <span className="text-gray-400">—</span>}
+                </div>
+              </div>
             </div>
 
             {/* ── Toggle: Facturación propia ── */}
