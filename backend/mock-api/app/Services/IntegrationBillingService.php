@@ -13,19 +13,22 @@ class IntegrationBillingService
 
     /**
      * Obtiene el conteo de documentos únicos facturables desde la API de la app externa.
+     *
+     * @param bool|null $includeUnique true: solo documentos enviados una sola vez (excluye reenvíos).
+     *                                  false: incluye los reenviados. null: usa el default de la API (true).
      */
-    public function countBillableDocuments(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo): int
+    public function countBillableDocuments(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo, ?bool $includeUnique = null): int
     {
-        return $this->externalApi->getIntegrationDocuments($tenantId, $departmentId, $periodFrom, $periodTo)['count'];
+        return $this->externalApi->getIntegrationDocuments($tenantId, $departmentId, $periodFrom, $periodTo, $includeUnique)['count'];
     }
 
     /**
      * Obtiene el conteo y el listado detallado de documentos desde la API externa.
      * Usado por IntegrationBillingController@documents para el detalle previo a facturar.
      */
-    public function getDocumentsFromApi(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo): array
+    public function getDocumentsFromApi(int $tenantId, ?int $departmentId, string $periodFrom, string $periodTo, ?bool $includeUnique = null): array
     {
-        return $this->externalApi->getIntegrationDocuments($tenantId, $departmentId, $periodFrom, $periodTo);
+        return $this->externalApi->getIntegrationDocuments($tenantId, $departmentId, $periodFrom, $periodTo, $includeUnique);
     }
 
     /*
@@ -67,6 +70,9 @@ class IntegrationBillingService
     /**
      * Precio fijo: conteo de documentos únicos × price del assignment.
      * El precio se toma directamente del campo price en tenant_service_assignments.
+     *
+     * Se factura con include_unique = true: solo documentos enviados una sola vez
+     * (los reenvíos no se cobran).
      */
     public function calculateForAssignment(TenantService $assignment, string $periodFrom, string $periodTo): array
     {
@@ -74,7 +80,8 @@ class IntegrationBillingService
             $assignment->tenant_id,
             $assignment->department_id,
             $periodFrom,
-            $periodTo
+            $periodTo,
+            includeUnique: true
         );
         $pricePerDoc = (float) ($assignment->price ?? 0);
         $total       = round($count * $pricePerDoc, 2);

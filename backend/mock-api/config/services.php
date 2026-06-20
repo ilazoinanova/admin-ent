@@ -36,8 +36,9 @@ return [
     ],
 
     'external_billing' => [
-        'url'   => env('EXTERNAL_BILLING_API_URL'),
-        'token' => env('EXTERNAL_BILLING_API_TOKEN'),
+        'url'           => env('EXTERNAL_BILLING_API_URL'),
+        'client_id'     => env('EXTERNAL_BILLING_CLIENT_ID'),
+        'client_secret' => env('EXTERNAL_BILLING_CLIENT_SECRET'),
     ],
 
 ];

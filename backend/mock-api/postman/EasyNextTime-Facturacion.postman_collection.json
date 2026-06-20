@@ -1,0 +1,114 @@
+{
+  "info": {
+    "name": "EasyNextTime - API Facturación (Externa)",
+    "description": "Pruebas de conectividad contra la API externa de EasyNextTime: autenticación y endpoints de facturación (license-count, integration-documents).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Auth Token",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/token",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "token"]
+        },
+        "description": "Obtiene el access_token (Bearer). El script de la pestaña Tests lo guarda automáticamente en la variable {{access_token}} del environment."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "",
+              "const json = pm.response.json();",
+              "",
+              "if (json.access_token) {",
+              "    pm.environment.set('access_token', json.access_token);",
+              "    console.log('access_token guardado en el environment');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Conteo de licencias",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{access_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenant_id\": {{tenant_id}},\n  \"department_id\": {{department_id}},\n  \"period_from\": \"{{period_from}}\",\n  \"period_to\": \"{{period_to}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/billing/license-count",
+          "host": ["{{base_url}}"],
+          "path": ["billing", "license-count"]
+        },
+        "description": "POST {BASE_URL}/billing/license-count -> { count, count_with_activities, ... }"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code', () => {",
+              "    pm.expect([200, 401, 403, 422]).to.include(pm.response.code);",
+              "});",
+              "console.log(pm.response.json());"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Documentos de integración",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{access_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenant_id\": {{tenant_id}},\n  \"department_id\": {{department_id}},\n  \"period_from\": \"{{period_from}}\",\n  \"period_to\": \"{{period_to}}\",\n  \"include_unique\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/billing/integration-documents",
+          "host": ["{{base_url}}"],
+          "path": ["billing", "integration-documents"]
+        },
+        "description": "POST {BASE_URL}/billing/integration-documents -> { count, documents: [...] }"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code', () => {",
+              "    pm.expect([200, 401, 403, 422]).to.include(pm.response.code);",
+              "});",
+              "console.log(pm.response.json());"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

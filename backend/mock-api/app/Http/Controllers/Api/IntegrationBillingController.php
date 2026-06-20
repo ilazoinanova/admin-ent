@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ExternalBillingApiException;
 use App\Http\Controllers\Controller;
 use App\Models\TenantService;
+use App\Rules\MaxDateRange;
 use App\Services\IntegrationBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +28,7 @@ class IntegrationBillingController extends Controller
             'tenant_id'     => 'required|integer|exists:tenants,id',
             'department_id' => 'nullable|integer|exists:tenant_departments,id',
             'period_from'   => 'required|date',
-            'period_to'     => 'required|date|after_or_equal:period_from',
+            'period_to'     => ['required', 'date', 'after_or_equal:period_from', new MaxDateRange('period_from', 92)],
         ]);
 
         try {
@@ -66,6 +68,10 @@ class IntegrationBillingController extends Controller
             });
 
             return response()->json(['results' => $results]);
+        } catch (ExternalBillingApiException $e) {
+            Log::error('IntegrationBillingController@preview: ' . $e->getMessage());
+
+            return $this->externalBillingErrorResponse($e);
         } catch (Throwable $e) {
             Log::error('IntegrationBillingController@preview: ' . $e->getMessage());
 
@@ -80,15 +86,19 @@ class IntegrationBillingController extends Controller
      * El detalle se obtiene desde la API externa de la app de integraciones.
      *
      * GET /api/billing/integration-documents
-     * Params: tenant_id, department_id (nullable), period_from, period_to
+     * Params: tenant_id, department_id (nullable), period_from, period_to, include_unique (nullable)
+     *
+     * include_unique: true (default) = solo documentos enviados una sola vez (excluye reenvíos);
+     * false = incluye los reenviados (cada documento se cuenta una vez).
      */
     public function documents(Request $request)
     {
         $request->validate([
-            'tenant_id'     => 'required|integer|exists:tenants,id',
-            'department_id' => 'nullable|integer',
-            'period_from'   => 'required|date',
-            'period_to'     => 'required|date|after_or_equal:period_from',
+            'tenant_id'      => 'required|integer|exists:tenants,id',
+            'department_id'  => 'nullable|integer',
+            'period_from'    => 'required|date',
+            'period_to'      => ['required', 'date', 'after_or_equal:period_from', new MaxDateRange('period_from', 92)],
+            'include_unique' => 'nullable|boolean',
         ]);
 
         try {
@@ -96,7 +106,8 @@ class IntegrationBillingController extends Controller
                 (int) $request->tenant_id,
                 $request->department_id ? (int) $request->department_id : null,
                 $request->period_from,
-                $request->period_to
+                $request->period_to,
+                $request->has('include_unique') ? $request->boolean('include_unique') : true
             );
 
             return response()->json([
@@ -126,6 +137,10 @@ class IntegrationBillingController extends Controller
              *     'total'     => $docs->count(),
              * ]);
              */
+        } catch (ExternalBillingApiException $e) {
+            Log::error('IntegrationBillingController@documents: ' . $e->getMessage());
+
+            return $this->externalBillingErrorResponse($e);
         } catch (Throwable $e) {
             Log::error('IntegrationBillingController@documents: ' . $e->getMessage());
 

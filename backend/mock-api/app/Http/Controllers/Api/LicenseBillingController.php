@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ExternalBillingApiException;
 use App\Http\Controllers\Controller;
 use App\Models\TenantService;
+use App\Rules\MaxDateRange;
 use App\Services\LicenseBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +28,7 @@ class LicenseBillingController extends Controller
             'tenant_id'     => 'required|integer|exists:tenants,id',
             'department_id' => 'nullable|integer|exists:tenant_departments,id',
             'period_from'   => 'required|date',
-            'period_to'     => 'required|date|after_or_equal:period_from',
+            'period_to'     => ['required', 'date', 'after_or_equal:period_from', new MaxDateRange('period_from', 92)],
         ]);
 
         try {
@@ -72,6 +74,10 @@ class LicenseBillingController extends Controller
             });
 
             return response()->json(['results' => $results]);
+        } catch (ExternalBillingApiException $e) {
+            Log::error('LicenseBillingController@preview: ' . $e->getMessage());
+
+            return $this->externalBillingErrorResponse($e);
         } catch (Throwable $e) {
             Log::error('LicenseBillingController@preview: ' . $e->getMessage());
 
