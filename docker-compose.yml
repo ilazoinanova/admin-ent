@@ -16,11 +16,11 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
     container_name: admin_ent_backend
     working_dir: /var/www/html
     volumes:
-      - ./backend:/var/www/html
+      - .:/var/www/html
     ports:
       - "8000:80"
     environment:
