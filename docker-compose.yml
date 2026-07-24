@@ -38,6 +38,8 @@ services:
       MYSQL_USER: sail
       MYSQL_PASSWORD: password
       MYSQL_ROOT_PASSWORD: password
+    ports:
+      - "3307:3306"
     volumes:
       - admin_ent_mysql_data:/var/lib/mysql
     healthcheck:
