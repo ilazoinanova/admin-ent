@@ -122,6 +122,8 @@ class PayablePaymentController extends Controller
         $request->validate([
             'amount_paid' => 'nullable|numeric|min:0',
             'paid_at'     => 'nullable|date',
+            'vendor'      => 'nullable|string|max:200',
+            'currency'    => 'nullable|in:CLP,USD',
             'reference'   => 'nullable|string|max:100',
             'notes'       => 'nullable|string',
             'comprobante' => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,webp',
@@ -131,7 +133,7 @@ class PayablePaymentController extends Controller
         try {
             $payment = PayablePayment::where('deleted', 0)->findOrFail($id);
 
-            $data = $request->only(['amount_paid', 'paid_at', 'reference', 'notes']);
+            $data = $request->only(['amount_paid', 'paid_at', 'vendor', 'currency', 'reference', 'notes']);
 
             if ($request->hasFile('comprobante')) {
                 // Eliminar archivo anterior si existe
@@ -168,6 +170,7 @@ class PayablePaymentController extends Controller
             'title'             => 'required|string|max:200',
             'description'       => 'nullable|string',
             'amount'            => 'nullable|numeric|min:0',
+            'currency'          => 'nullable|in:CLP,USD',
             'amount_paid'       => 'nullable|numeric|min:0',
             'paid_at'           => 'nullable|date',
             'due_date'          => 'nullable|date',
@@ -189,10 +192,12 @@ class PayablePaymentController extends Controller
                 'payable_id'        => null,
                 'is_additional'     => true,
                 'title'             => $request->title,
+                'vendor'            => $request->vendor,
                 'description'       => $request->description,
                 'period'            => $legacyPeriod,
                 'due_date'          => $request->due_date,
                 'amount'            => $request->amount ?? $request->amount_paid ?? 0,
+                'currency'          => $request->currency ?? 'CLP',
                 'amount_paid'       => $request->amount_paid,
                 'paid_at'           => $request->paid_at,
                 'reference'         => $request->reference,

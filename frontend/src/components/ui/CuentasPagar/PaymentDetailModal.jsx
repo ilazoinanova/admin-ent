@@ -14,7 +14,7 @@ const FREQ_KEYS = { monthly: "freq_monthly", quarterly: "freq_quarterly", annual
 function isImage(mime = "") { return mime.startsWith("image/"); }
 function isPdf(mime = "")   { return mime === "application/pdf"; }
 
-export default function PaymentDetailModal({ payment, initialMode = "view", onClose, onUpdated }) {
+export default function PaymentDetailModal({ payment, periodLabel, initialMode = "view", onClose, onUpdated }) {
   const { t }             = useTranslation();
   const [mode, setMode]   = useState(initialMode);
   const [saving, setSaving] = useState(false);
@@ -31,7 +31,9 @@ export default function PaymentDetailModal({ payment, initialMode = "view", onCl
 
   const [editForm, setEditForm] = useState({
     amount_paid: payment.amount_paid ?? "",
+    currency:    payment.currency    ?? "CLP",
     paid_at:     payment.paid_at     ?? "",
+    vendor:      payment.vendor      ?? "",
     reference:   payment.reference   ?? "",
     notes:       payment.notes       ?? "",
   });
@@ -85,14 +87,18 @@ export default function PaymentDetailModal({ payment, initialMode = "view", onCl
       if (comprobanteFile) {
         payload = new FormData();
         if (editForm.amount_paid !== "") payload.append("amount_paid", editForm.amount_paid);
+        payload.append("currency", editForm.currency);
         if (editForm.paid_at)            payload.append("paid_at",     editForm.paid_at);
+        if (editForm.vendor)             payload.append("vendor",      editForm.vendor);
         if (editForm.reference)          payload.append("reference",   editForm.reference);
         if (editForm.notes)              payload.append("notes",       editForm.notes);
         payload.append("comprobante", comprobanteFile);
       } else {
         payload = {
           amount_paid: editForm.amount_paid !== "" ? Number(editForm.amount_paid) : null,
+          currency:    editForm.currency,
           paid_at:     editForm.paid_at     || null,
+          vendor:      editForm.vendor      || null,
           reference:   editForm.reference   || null,
           notes:       editForm.notes       || null,
         };
@@ -124,6 +130,7 @@ export default function PaymentDetailModal({ payment, initialMode = "view", onCl
   };
 
   const p = payment.payable ?? {};
+  const displayName = payment.is_additional ? (payment.title || "—") : (p.name ?? "—");
 
   // Preview a mostrar (nuevo archivo o existente)
   const showUrl  = localPreviewUrl  ?? previewUrl;
@@ -139,7 +146,7 @@ export default function PaymentDetailModal({ payment, initialMode = "view", onCl
             <h2 className="font-semibold text-gray-800 dark:text-gray-100">
               {mode === "view" ? t("paymentDetail") : t("editPayment")}
             </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{p.name} · {payment.period}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{displayName} · {periodLabel ?? payment.period}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
             <X size={18} />
@@ -169,16 +176,32 @@ export default function PaymentDetailModal({ payment, initialMode = "view", onCl
 
               {mode === "view" ? (
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                  <InfoRow label={t("period")}    value={<span className="font-mono font-semibold">{payment.period}</span>} />
+                  <InfoRow label={t("period")}    value={<span className="font-mono font-semibold">{periodLabel ?? payment.period}</span>} />
                   <InfoRow label={t("dueDate")}   value={fmtDate(payment.due_date) ?? "—"} />
-                  <InfoRow label={t("amount")}    value={`$${fmt(payment.amount)}`} />
-                  <InfoRow label={t("amountPaid")} value={payment.amount_paid != null ? `$${fmt(payment.amount_paid)}` : "—"} />
+                  <InfoRow label={t("amount")}    value={payment.is_additional ? `${payment.currency ?? "CLP"} $${fmt(payment.amount)}` : `$${fmt(payment.amount)}`} />
+                  <InfoRow label={t("amountPaid")} value={payment.amount_paid != null ? (payment.is_additional ? `${payment.currency ?? "CLP"} $${fmt(payment.amount_paid)}` : `$${fmt(payment.amount_paid)}`) : "—"} />
                   <InfoRow label={t("paidAt")}    value={payment.paid_at ? fmtDate(payment.paid_at) : "—"} />
+                  {payment.is_additional && <InfoRow label={t("vendor")} value={payment.vendor || "—"} />}
                   <InfoRow label={t("reference")} value={payment.reference || "—"} />
                   {payment.notes && <InfoRow label={t("notes")} value={payment.notes} full />}
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {payment.is_additional && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{t("vendor")}</label>
+                        <input className={fieldCls} value={editForm.vendor} onChange={(e) => set("vendor", e.target.value)} disabled={saving} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{t("currency")}</label>
+                        <select className={fieldCls} value={editForm.currency} onChange={(e) => set("currency", e.target.value)} disabled={saving}>
+                          <option value="CLP">CLP</option>
+                          <option value="USD">USD</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
                   {/* Fila 1: Monto · Fecha · Referencia */}
                   <div className="grid grid-cols-3 gap-3">
                     <div>

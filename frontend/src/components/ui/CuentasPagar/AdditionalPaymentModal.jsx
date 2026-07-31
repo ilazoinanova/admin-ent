@@ -14,6 +14,7 @@ export default function AdditionalPaymentModal({ period, onClose, onSaved }) {
     title:       "",
     description: "",
     amount_paid: "",
+    currency:    "CLP",
     paid_at:     "",
     vendor:      "",
     reference:   "",
@@ -49,6 +50,7 @@ export default function AdditionalPaymentModal({ period, onClose, onSaved }) {
         if (form.description) payload.append("description", form.description);
         if (form.vendor)      payload.append("vendor",      form.vendor);
         if (form.amount_paid) payload.append("amount_paid", form.amount_paid);
+        payload.append("currency", form.currency);
         if (form.paid_at)     payload.append("paid_at",     form.paid_at);
         if (form.reference)   payload.append("reference",   form.reference);
         if (form.notes)       payload.append("notes",       form.notes);
@@ -60,6 +62,7 @@ export default function AdditionalPaymentModal({ period, onClose, onSaved }) {
           description:       form.description || undefined,
           vendor:            form.vendor      || undefined,
           amount_paid:       form.amount_paid ? Number(form.amount_paid) : undefined,
+          currency:          form.currency,
           paid_at:           form.paid_at     || undefined,
           reference:         form.reference   || undefined,
           notes:             form.notes       || undefined,
@@ -150,8 +153,8 @@ export default function AdditionalPaymentModal({ period, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Monto pagado + Fecha de pago */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Monto pagado + Moneda + Fecha de pago */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t("amountPaid")}</label>
               <input
@@ -161,6 +164,18 @@ export default function AdditionalPaymentModal({ period, onClose, onSaved }) {
                 onChange={(e) => set("amount_paid", e.target.value)}
                 disabled={saving}
               />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t("currency")}</label>
+              <select
+                className={fieldCls}
+                value={form.currency}
+                onChange={(e) => set("currency", e.target.value)}
+                disabled={saving}
+              >
+                <option value="CLP">CLP</option>
+                <option value="USD">USD</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t("paidAt")}</label>

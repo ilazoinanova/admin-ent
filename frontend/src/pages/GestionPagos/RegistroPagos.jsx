@@ -87,8 +87,15 @@ export default function RegistroPagos() {
   // Stats del período actual
   const templateRows   = payments.filter((p) => !p.is_additional);
   const additionalRows = payments.filter((p) => p.is_additional);
-  const totalAmount    = payments.reduce((s, p) => s + (p.amount ?? 0), 0);
-  const totalPaid      = payments.reduce((s, p) => s + (p.amount_paid ?? 0), 0);
+
+  // Totales agrupados por moneda (un período puede tener pagos en distintas monedas)
+  const totalsByCurrency = payments.reduce((acc, p) => {
+    const cur = p.currency || "CLP";
+    acc[cur] = acc[cur] ?? { total: 0, paid: 0 };
+    acc[cur].total += p.amount ?? 0;
+    acc[cur].paid  += p.amount_paid ?? 0;
+    return acc;
+  }, {});
 
   const grid = "grid-cols-[2.2fr_1.2fr_1fr_1fr_1fr_90px_70px]";
 
@@ -149,8 +156,30 @@ export default function RegistroPagos() {
         <div className="grid grid-cols-4 gap-3">
           <StatCard label={t("rp.statAccounts")}    value={templateRows.length}   color="text-gray-800 dark:text-gray-100" />
           <StatCard label={t("rp.statAdditionals")} value={additionalRows.length} color="text-purple-600 dark:text-purple-400" />
-          <StatCard label={t("rp.statTotal")}        value={`$${fmt(totalAmount)}`}  color="text-gray-800 dark:text-gray-100" money />
-          <StatCard label={t("rp.statPaid")}         value={`$${fmt(totalPaid)}`}    color="text-green-600 dark:text-green-400" money />
+          <StatCard
+            label={t("rp.statTotal")}
+            color="text-gray-800 dark:text-gray-100"
+            money
+            value={
+              <div className="space-y-0.5">
+                {Object.entries(totalsByCurrency).map(([cur, totals]) => (
+                  <div key={cur}>{cur} ${fmt(totals.total)}</div>
+                ))}
+              </div>
+            }
+          />
+          <StatCard
+            label={t("rp.statPaid")}
+            color="text-green-600 dark:text-green-400"
+            money
+            value={
+              <div className="space-y-0.5">
+                {Object.entries(totalsByCurrency).map(([cur, totals]) => (
+                  <div key={cur}>{cur} ${fmt(totals.paid)}</div>
+                ))}
+              </div>
+            }
+          />
         </div>
       )}
 
@@ -224,6 +253,7 @@ export default function RegistroPagos() {
         <PaymentDetailModal
           key={detailPayment.id}
           payment={detailPayment}
+          periodLabel={selectedPeriod?.label}
           initialMode={detailMode}
           onClose={() => setDetailPayment(null)}
           onUpdated={() => { setDetailPayment(null); reloadPeriod(); }}
@@ -247,7 +277,7 @@ function StatCard({ label, value, color, money }) {
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
       <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{label}</p>
-      <p className={`text-xl font-bold ${color} ${money ? "text-base" : ""}`}>{value}</p>
+      <div className={`text-xl font-bold ${color} ${money ? "text-base" : ""}`}>{value}</div>
     </div>
   );
 }
@@ -257,7 +287,7 @@ function PaymentRow({ pay, grid, additional, editable, onView, onEdit }) {
     ? (pay.title ?? "—")
     : (pay.payable?.name ?? "—");
   const vendor = additional
-    ? "—"
+    ? (pay.vendor || "—")
     : (pay.payable?.vendor || "—");
 
   return (
@@ -273,9 +303,9 @@ function PaymentRow({ pay, grid, additional, editable, onView, onEdit }) {
       </div>
       <span className="text-gray-500 dark:text-gray-400 truncate">{vendor}</span>
       <span className="text-gray-600 dark:text-gray-400 text-xs">{fmtDate(pay.due_date) ?? "—"}</span>
-      <span className="font-semibold text-gray-800 dark:text-gray-200">${Number(pay.amount ?? 0).toLocaleString("es-CL")}</span>
+      <span className="font-semibold text-gray-800 dark:text-gray-200">{additional && pay.currency ? `${pay.currency} ` : ""}${Number(pay.amount ?? 0).toLocaleString("es-CL")}</span>
       <span className={pay.amount_paid != null ? "text-green-600 dark:text-green-400 font-semibold" : "text-gray-400"}>
-        {pay.amount_paid != null ? `$${Number(pay.amount_paid).toLocaleString("es-CL")}` : "—"}
+        {pay.amount_paid != null ? `${additional && pay.currency ? `${pay.currency} ` : ""}$${Number(pay.amount_paid).toLocaleString("es-CL")}` : "—"}
       </span>
       <div className="flex justify-center">
         {pay.comprobante_path && (
