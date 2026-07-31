@@ -307,7 +307,7 @@ const Sidebar = ({ collapsed }) => {
       {/* Footer */}
       {!collapsed && (
         <div className="px-4 py-4 text-xs text-gray-400 dark:text-gray-600 border-t dark:border-gray-700">
-          © 2026 Admin
+          © 2026 Easypay
         </div>
       )}
     </aside>

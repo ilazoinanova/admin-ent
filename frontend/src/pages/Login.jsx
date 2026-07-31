@@ -65,7 +65,7 @@ const Login = () => {
                     </div>
 
                     <h1 className="text-4xl font-bold leading-tight mb-4">
-                        Sistema de Administración,<br />todo en un solo lugar.
+                        Easypay,<br />todo en un solo lugar.
                     </h1>
                     <p className="text-gray-300 max-w-md mb-10">
                         Gestión de clientes, facturación y servicios — con la trazabilidad
