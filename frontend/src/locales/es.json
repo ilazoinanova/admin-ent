@@ -609,6 +609,9 @@
         "toggleError": "Error al cambiar el estado",
         "deleteError": "Error al eliminar el período",
         "save": "Guardar",
-        "create": "Crear"
+        "create": "Crear",
+        "activateTitle": "Activar período",
+        "activateWarning": "¿Seguro que deseas activar el período {{label}}? Al activarlo podrás registrar y editar los pagos de las cuentas por pagar de ese período en Registro de Pagos.",
+        "activateWithCurrentWarning": "¿Seguro que deseas activar el período {{label}}? Esto desactivará el período actualmente activo ({{current}}). Al activarlo podrás registrar y editar los pagos de las cuentas por pagar de ese período en Registro de Pagos."
     }
 }

@@ -14,7 +14,7 @@ class PaymentPeriodController extends Controller
 {
     public function index(Request $request)
     {
-        $query = PaymentPeriod::where('deleted', false);
+        $query = PaymentPeriod::where('deleted', false)->withCount('payments');
 
         if ($request->filled('type')) {
             $query->where('type', $request->type);

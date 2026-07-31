@@ -69,6 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payable-payments', [PayablePaymentController::class, 'indexAll']);
     Route::get('/payables/{payableId}/payments', [PayablePaymentController::class, 'index']);
     Route::post('/payables/{payableId}/payments', [PayablePaymentController::class, 'store']);
+    Route::post('/payable-payments/additional', [PayablePaymentController::class, 'storeAdditional']);   // debe ir antes de la ruta comodín {id}
     Route::post('/payable-payments/{id}', [PayablePaymentController::class, 'update']);   // POST con _method=PUT para soportar multipart
     Route::put('/payable-payments/{id}', [PayablePaymentController::class, 'update']);
     Route::get('/payable-payments/{id}/comprobante', [PayablePaymentController::class, 'comprobante']);
@@ -76,7 +77,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('payment-periods', PaymentPeriodController::class)->except(['show']);
     Route::post('/payment-periods/{id}/toggle-active', [PaymentPeriodController::class, 'toggleActive']);
     Route::post('/payment-periods/{id}/initialize',    [PaymentPeriodController::class, 'initialize']);
-
-    Route::post('/payable-payments/additional', [PayablePaymentController::class, 'storeAdditional']);
 
 });

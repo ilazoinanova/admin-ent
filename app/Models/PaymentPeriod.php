@@ -31,6 +31,11 @@ class PaymentPeriod extends Model
         9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
     ];
 
+    public function payments()
+    {
+        return $this->hasMany(PayablePayment::class);
+    }
+
     public function getLabelAttribute(): string
     {
         if ($this->type === 'annual') {

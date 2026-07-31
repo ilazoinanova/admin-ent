@@ -7,6 +7,7 @@ import {
   togglePaymentPeriodActive,
 } from "../../api/periodos/periodoPago.service";
 import PeriodFormModal from "../../components/ui/PeriodosPago/PeriodFormModal";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const TYPE_LABELS = { monthly: "Mensual", annual: "Anual" };
 
@@ -24,6 +25,7 @@ export default function PeriodosPago() {
   const [showForm, setShowForm]     = useState(false);
   const [editPeriod, setEditPeriod] = useState(null);
   const [toggling, setToggling]     = useState(null);
+  const [confirmPeriod, setConfirmPeriod] = useState(null);
 
   const load = async (s = debouncedSearch, p = page, type = typeFilter) => {
     setLoading(true);
@@ -75,6 +77,16 @@ export default function PeriodosPago() {
       setToggling(null);
     }
   };
+
+  const onToggleClick = (period) => {
+    if (period.active) {
+      handleToggle(period);
+    } else {
+      setConfirmPeriod(period);
+    }
+  };
+
+  const currentActive = periods.find((p) => p.active && p.id !== confirmPeriod?.id);
 
   const openEdit = (p) => { setEditPeriod(p); setShowForm(true); };
 
@@ -178,7 +190,7 @@ export default function PeriodosPago() {
                   <Pencil size={15} />
                 </button>
                 <button
-                  onClick={() => handleToggle(p)}
+                  onClick={() => onToggleClick(p)}
                   disabled={toggling === p.id}
                   title={p.active ? t("pp.deactivate") : t("pp.activate")}
                   className="disabled:opacity-50 transition"
@@ -227,6 +239,23 @@ export default function PeriodosPago() {
           onSaved={handleSaved}
         />
       )}
+
+      {/* Confirmación de activación */}
+      <ConfirmModal
+        open={Boolean(confirmPeriod)}
+        onClose={() => setConfirmPeriod(null)}
+        onConfirm={async () => {
+          await handleToggle(confirmPeriod);
+          setConfirmPeriod(null);
+        }}
+        title={t("pp.activateTitle")}
+        description={
+          currentActive
+            ? t("pp.activateWithCurrentWarning", { label: confirmPeriod?.label, current: currentActive.label })
+            : t("pp.activateWarning", { label: confirmPeriod?.label })
+        }
+        confirmText={t("pp.activate")}
+      />
     </div>
   );
 }

@@ -101,7 +101,7 @@ export default function RegistroPagos() {
           <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{t("paymentLedger")}</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">{t("rp.subtitle")}</p>
         </div>
-        {selectedPeriodId && (
+        {selectedPeriodId && selectedPeriod?.active && (
           <button
             onClick={() => setShowAdditional(true)}
             className="bg-[#0b1b3b] text-white text-sm px-4 py-2 rounded-md flex items-center gap-1.5 hover:bg-[#162d5e] transition"
@@ -122,7 +122,7 @@ export default function RegistroPagos() {
             className="appearance-none border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md px-3 py-1.5 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60"
           >
             <option value="">{loadingPeriods ? t("rp.loadingPeriods") : t("rp.choosePeriod")}</option>
-            {periods.map((p) => (
+            {periods.filter((p) => p.active || p.payments_count > 0).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.active ? "● " : ""}{p.label} — {p.type === "monthly" ? t("pp.monthly") : t("pp.annual")}
                 {p.active ? ` (${t("pp.statusActive")})` : ""}
@@ -191,37 +191,29 @@ export default function RegistroPagos() {
           ) : (
             <>
               {/* Filas de plantilla (cuentas por pagar) */}
-              {templateRows.length > 0 && (
-                <>
-                  <SectionHeader label={t("rp.sectionAccounts")} count={templateRows.length} />
-                  {templateRows.map((pay) => (
-                    <PaymentRow
-                      key={pay.id}
-                      pay={pay}
-                      grid={grid}
-                      onView={() => openDetail(pay)}
-                      onEdit={() => openEdit(pay)}
-                    />
-                  ))}
-                </>
-              )}
+              {templateRows.map((pay) => (
+                <PaymentRow
+                  key={pay.id}
+                  pay={pay}
+                  grid={grid}
+                  editable={Boolean(selectedPeriod?.active)}
+                  onView={() => openDetail(pay)}
+                  onEdit={() => openEdit(pay)}
+                />
+              ))}
 
               {/* Filas adicionales */}
-              {additionalRows.length > 0 && (
-                <>
-                  <SectionHeader label={t("rp.sectionAdditionals")} count={additionalRows.length} additional />
-                  {additionalRows.map((pay) => (
-                    <PaymentRow
-                      key={pay.id}
-                      pay={pay}
-                      grid={grid}
-                      additional
-                      onView={() => openDetail(pay)}
-                      onEdit={() => openEdit(pay)}
-                    />
-                  ))}
-                </>
-              )}
+              {additionalRows.map((pay) => (
+                <PaymentRow
+                  key={pay.id}
+                  pay={pay}
+                  grid={grid}
+                  additional
+                  editable={Boolean(selectedPeriod?.active)}
+                  onView={() => openDetail(pay)}
+                  onEdit={() => openEdit(pay)}
+                />
+              ))}
             </>
           )}
         </div>
@@ -260,20 +252,7 @@ function StatCard({ label, value, color, money }) {
   );
 }
 
-function SectionHeader({ label, count, additional = false }) {
-  return (
-    <div className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold border-t dark:border-gray-700
-      ${additional ? "bg-purple-50 dark:bg-purple-900/10 text-purple-600 dark:text-purple-400"
-                   : "bg-gray-50 dark:bg-gray-700/40 text-gray-500 dark:text-gray-400"}`}>
-      {label}
-      <span className="bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-full px-1.5 py-0.5 text-[10px]">
-        {count}
-      </span>
-    </div>
-  );
-}
-
-function PaymentRow({ pay, grid, additional, onView, onEdit }) {
+function PaymentRow({ pay, grid, additional, editable, onView, onEdit }) {
   const name   = additional
     ? (pay.title ?? "—")
     : (pay.payable?.name ?? "—");
@@ -312,9 +291,11 @@ function PaymentRow({ pay, grid, additional, onView, onEdit }) {
         <button onClick={onView} title="Ver detalle" className="text-gray-400 hover:text-blue-600 transition">
           <Eye size={15} />
         </button>
-        <button onClick={onEdit} title="Editar" className="text-gray-400 hover:text-blue-600 transition">
-          <Pencil size={15} />
-        </button>
+        {editable && (
+          <button onClick={onEdit} title="Editar" className="text-gray-400 hover:text-blue-600 transition">
+            <Pencil size={15} />
+          </button>
+        )}
       </div>
     </div>
   );

@@ -22,6 +22,8 @@ const Spinner = () => (
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 6 }, (_, i) => currentYear - 1 + i);
 
+const daysInMonth = (month, year) => new Date(year, month, 0).getDate();
+
 export default function PeriodFormModal({ period, onClose, onSaved }) {
   const { t } = useTranslation();
   const isEdit = Boolean(period);
@@ -47,6 +49,14 @@ export default function PeriodFormModal({ period, onClose, onSaved }) {
       });
     }
   }, [period]);
+
+  useEffect(() => {
+    setForm((f) => ({
+      ...f,
+      start_day: 1,
+      end_day: f.type === "monthly" ? daysInMonth(f.month, f.year) : 31,
+    }));
+  }, [form.type, form.month, form.year]);
 
   const set = (field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -168,8 +178,9 @@ export default function PeriodFormModal({ period, onClose, onSaved }) {
                 type="number"
                 min={1} max={31}
                 value={form.start_day}
-                onChange={(e) => set("start_day", e.target.value)}
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                disabled
+                readOnly
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-md px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 cursor-not-allowed"
               />
               {errors.start_day && <p className="text-red-500 text-xs mt-0.5">{errors.start_day}</p>}
             </div>
@@ -179,8 +190,9 @@ export default function PeriodFormModal({ period, onClose, onSaved }) {
                 type="number"
                 min={1} max={31}
                 value={form.end_day}
-                onChange={(e) => set("end_day", e.target.value)}
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                disabled
+                readOnly
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-md px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 cursor-not-allowed"
               />
               {errors.end_day && <p className="text-red-500 text-xs mt-0.5">{errors.end_day}</p>}
             </div>

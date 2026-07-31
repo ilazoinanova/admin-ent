@@ -607,6 +607,9 @@
         "toggleError": "Error changing status",
         "deleteError": "Error deleting period",
         "save": "Save",
-        "create": "Create"
+        "create": "Create",
+        "activateTitle": "Activate period",
+        "activateWarning": "Are you sure you want to activate the period {{label}}? Once active, you'll be able to register and edit payments for this period's payables in Payment Ledger.",
+        "activateWithCurrentWarning": "Are you sure you want to activate the period {{label}}? This will deactivate the currently active period ({{current}}). Once active, you'll be able to register and edit payments for this period's payables in Payment Ledger."
     }
 }
